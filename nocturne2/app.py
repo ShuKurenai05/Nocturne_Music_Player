@@ -1,5 +1,4 @@
 import os
-import requests
 import yt_dlp
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
@@ -11,8 +10,8 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-MIN_DURATION = 90
-MAX_DURATION = 600
+MIN_DURATION = 90    # 1.5 minutes
+MAX_DURATION = 600   # 10 minutes
 
 NOISE_WORDS = [
     "tutorial", "how to", "howto", "review", "unboxing", "podcast",
@@ -93,17 +92,6 @@ def search():
         print(f"Search Extraction Error: {e}")
 
     return jsonify(results)
-
-@app.route("/resolve/<video_id>")
-def resolve(video_id):
-    ydl_opts = get_ydl_opts()
-    ydl_opts["format"] = "bestaudio[ext=webm]/bestaudio/best"
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-            return jsonify({"url": info.get("url")})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 502
 
 @app.route("/health")
 def health():
