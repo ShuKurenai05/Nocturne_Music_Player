@@ -40,36 +40,36 @@ def best_thumb(thumbnails):
 def ydl_search(query, limit=20):
     results = []
 
-    def music_match_filter(info, *, incomplete=False):
-        if not is_music(info.get('title') or '', info.get('duration') or 0):
-            return 'skip'
-        return None
-
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
-        'extract_flat': True,
+        'extract_flat': 'in_playlist',
         'nocheckcertificate': True,
-        'match_filter': music_match_filter,
         'http_headers': HEADERS,
         'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
+        'ignoreerrors': True,
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch{limit * 2}:{query} official audio", download=False)
+            if not info:
+                return []
             for entry in (info.get('entries') or []):
+                if not entry:
+                    continue
                 dur = entry.get('duration') or 0
                 title = entry.get('title') or ''
                 if not is_music(title, dur):
                     continue
-                vid_id = entry.get('id') or entry.get('url', '').split('v=')[-1]
-                thumbs = entry.get('thumbnails') or []
+                vid_id = entry.get('id') or ''
+                if not vid_id:
+                    continue
                 results.append({
                     'id': vid_id,
                     'title': title,
                     'artist': entry.get('uploader') or entry.get('channel') or '',
-                    'thumbnail': best_thumb(thumbs) or f'https://i.ytimg.com/vi/{vid_id}/mqdefault.jpg',
+                    'thumbnail': f'https://i.ytimg.com/vi/{vid_id}/mqdefault.jpg',
                     'duration': dur,
                     'duration_fmt': fmt(dur),
                 })
