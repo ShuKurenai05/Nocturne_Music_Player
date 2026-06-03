@@ -9,8 +9,8 @@ CORS(app)
 
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36'}
 
-MIN_DUR = 90
-MAX_DUR = 600
+MIN_DURATION = 90    # seconds
+MAX_DURATION = 600   # seconds
 
 NOISE_WORDS = [
     'tutorial', 'how to', 'howto', 'review', 'unboxing', 'podcast',
@@ -21,29 +21,19 @@ NOISE_WORDS = [
 ]
 
 def is_music(title, duration):
-    if not duration or duration < MIN_DUR or duration > MAX_DUR:
+    if not duration or duration < MIN_DURATION or duration > MAX_DURATION:
         return False
     return not any(n in title.lower() for n in NOISE_WORDS)
 
-def fmt(s):
+def fmt_duration(s):
     s = int(s or 0)
     return f"{s // 60}:{s % 60:02d}"
 
-def best_thumb(thumbnails):
-    if not thumbnails:
-        return ''
-    for t in reversed(thumbnails):
-        if t.get('width', 0) >= 200:
-            return t.get('url', '')
-    return thumbnails[-1].get('url', '')
-
 def ydl_search(query, limit=20):
     results = []
-
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
-        # REMOVED 'extract_flat' so yt-dlp gathers individual item lengths properly
         'nocheckcertificate': True,
         'http_headers': HEADERS,
         'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
@@ -52,8 +42,7 @@ def ydl_search(query, limit=20):
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # We search for slightly fewer initial items (limit + 5) since parsing deep 
-            # item metadata takes a little bit longer.
+            # Gather individual track metadata completely to populate exact video duration length
             info = ydl.extract_info(f"ytsearch{limit + 5}:{query} official audio", download=False)
             if not info:
                 return []
@@ -73,7 +62,9 @@ def ydl_search(query, limit=20):
                     'artist': entry.get('uploader') or entry.get('channel') or 'Unknown Artist',
                     'thumbnail': f'https://i.ytimg.com/vi/{vid_id}/mqdefault.jpg',
                     'duration': dur,
-                    'duration_fmt': fmt(dur),
+                    'duration_fmt': fmt_duration(dur),
+                    'source': 'yt-dlp',
+                    'piped_base': '' # Kept blank to maintain front-end property alignment
                 })
                 if len(results) >= limit:
                     break
@@ -112,7 +103,7 @@ def search():
     return jsonify(ydl_search(q))
 
 @app.route('/stream/<video_id>')
-def stream(video_id):
+def stream_audio(video_id):
     stream_url = get_stream_url(video_id)
     if not stream_url:
         return jsonify({'error': 'Could not resolve stream'}), 502
