@@ -36,7 +36,6 @@ def get_ydl_opts():
         'no_warnings': True,
         'nocheckcertificate': True,
         'http_headers': HEADERS,
-        # Use fallback player clients to maximize success rates on hosting providers
         'extractor_args': {'youtube': {'player_client': ['web', 'mweb', 'ios']}},
         'ignoreerrors': True,
     }
@@ -50,7 +49,7 @@ def ydl_search(query, limit=20):
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Adding 'official audio' helps target music specifically
+            # We explicitly drop 'extract_flat' here so the duration isn't evaluated as 0
             info = ydl.extract_info(f"ytsearch{limit + 5}:{query} official audio", download=False)
             if not info:
                 return []
