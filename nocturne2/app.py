@@ -1,196 +1,146 @@
 import os
-import re
 import requests
+import yt_dlp
 from flask import Flask, jsonify, request, render_template, Response, stream_with_context
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-# ---------------------------------------------------------------------------
-# Piped instances — tried in order, fallback if one is down
-# These are public community instances, no API key needed.
-# ---------------------------------------------------------------------------
-PIPED_INSTANCES = [
-    "https://pipedapi.kavin.rocks",
-    "https://piped-api.garudalinux.org",
-    "https://api.piped.yt",
-    "https://piped.adminforge.de/api",
+HEADERS = {'User-Agent': 'Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36'}
+
+MIN_DUR = 90
+MAX_DUR = 600
+
+NOISE_WORDS = [
+    'tutorial', 'how to', 'howto', 'review', 'unboxing', 'podcast',
+    'interview', 'lecture', 'lesson', 'explained', 'documentary',
+    'news', 'weather', 'recipe', 'cooking', 'vlog', 'reaction',
+    'trailer', 'teaser', 'gameplay', 'walkthrough', 'speedrun',
+    'shorts', '#shorts',
 ]
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-}
-
-# Duration filter: only accept tracks between 1.5 min and 10 min
-MIN_DURATION = 90    # seconds
-MAX_DURATION = 600   # seconds
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def is_music(item):
-    """Heuristic filter — keeps only music-like results."""
-    dur = item.get("duration", 0)
-    if dur < MIN_DURATION or dur > MAX_DURATION:
+def is_music(title, duration):
+    if not duration or duration < MIN_DUR or duration > MAX_DUR:
         return False
-    title = item.get("title", "").lower()
-    # reject obvious non-music patterns
-    noise = [
-        "tutorial", "how to", "review", "unboxing", "podcast",
-        "interview", "lecture", "lesson", "explained", "documentary",
-        "news", "weather", "recipe", "cooking", "vlog", "reaction",
-        "trailer", "teaser", "gameplay", "walkthrough", "speedrun",
-    ]
-    return not any(n in title for n in noise)
+    return not any(n in title.lower() for n in NOISE_WORDS)
 
+def fmt(s):
+    s = int(s or 0)
+    return f"{s // 60}:{s % 60:02d}"
 
-def fmt_duration(seconds):
-    m, s = divmod(int(seconds), 60)
-    return f"{m}:{s:02d}"
+def best_thumb(thumbnails):
+    if not thumbnails:
+        return ''
+    for t in reversed(thumbnails):
+        if t.get('width', 0) >= 200:
+            return t.get('url', '')
+    return thumbnails[-1].get('url', '')
 
+def ydl_search(query, limit=20):
+    results = []
 
-def piped_search(query, limit=20):
-    """Search Piped — forces music context, filters results."""
-    music_query = f"{query} official audio"
-    for base in PIPED_INSTANCES:
-        try:
-            url = f"{base}/search"
-            r = requests.get(
-                url,
-                params={"q": music_query, "filter": "music_songs"},
-                headers=HEADERS,
-                timeout=6,
-            )
-            if r.status_code != 200:
-                continue
-            data = r.json()
-            items = data.get("items", [])
-            results = []
-            for it in items:
-                if it.get("type") != "stream":
+    def music_match_filter(info, *, incomplete=False):
+        if not is_music(info.get('title') or '', info.get('duration') or 0):
+            return 'skip'
+        return None
+
+    ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'extract_flat': True,
+        'nocheckcertificate': True,
+        'match_filter': music_match_filter,
+        'http_headers': HEADERS,
+        'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"ytsearch{limit * 2}:{query} official audio", download=False)
+            for entry in (info.get('entries') or []):
+                dur = entry.get('duration') or 0
+                title = entry.get('title') or ''
+                if not is_music(title, dur):
                     continue
-                dur = it.get("duration", 0)
-                if not is_music({"duration": dur, "title": it.get("title", "")}):
-                    continue
-                vid_id = it.get("url", "").replace("/watch?v=", "").strip()
+                vid_id = entry.get('id') or entry.get('url', '').split('v=')[-1]
+                thumbs = entry.get('thumbnails') or []
                 results.append({
-                    "id": vid_id,
-                    "title": it.get("title", "Unknown"),
-                    "artist": it.get("uploaderName", ""),
-                    "thumbnail": it.get("thumbnail", ""),
-                    "duration": dur,
-                    "duration_fmt": fmt_duration(dur),
-                    "source": "piped",
-                    "piped_base": base,
+                    'id': vid_id,
+                    'title': title,
+                    'artist': entry.get('uploader') or entry.get('channel') or '',
+                    'thumbnail': best_thumb(thumbs) or f'https://i.ytimg.com/vi/{vid_id}/mqdefault.jpg',
+                    'duration': dur,
+                    'duration_fmt': fmt(dur),
                 })
                 if len(results) >= limit:
                     break
-            if results:
-                return results
-        except Exception:
-            continue
-    return []
+    except Exception as e:
+        app.logger.error(f"Search error: {e}")
 
+    return results
 
-def piped_stream_url(video_id, piped_base):
-    """Get direct audio stream URL from Piped."""
-    for base in [piped_base] + [b for b in PIPED_INSTANCES if b != piped_base]:
-        try:
-            r = requests.get(
-                f"{base}/streams/{video_id}",
-                headers=HEADERS,
-                timeout=8,
-            )
-            if r.status_code != 200:
-                continue
-            data = r.json()
-            audio_streams = data.get("audioStreams", [])
-            if not audio_streams:
-                continue
-            # pick best quality
-            best = sorted(audio_streams, key=lambda x: x.get("bitrate", 0), reverse=True)[0]
-            return best.get("url"), base
-        except Exception:
-            continue
-    return None, None
+def get_stream_url(video_id):
+    ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'nocheckcertificate': True,
+        'format': 'bestaudio[ext=webm]/bestaudio/best',
+        'http_headers': HEADERS,
+        'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
+            return info.get('url')
+    except Exception as e:
+        app.logger.error(f"Stream URL error for {video_id}: {e}")
+        return None
 
-
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
-@app.route("/")
+@app.route('/')
 def index():
-    return render_template("index.html")
+    return render_template('index.html')
 
-
-@app.route("/search")
+@app.route('/search')
 def search():
-    query = request.args.get("q", "").strip()
-    if not query:
+    q = request.args.get('q', '').strip()
+    if not q:
         return jsonify([])
-    results = piped_search(query)
-    return jsonify(results)
+    return jsonify(ydl_search(q))
 
-
-@app.route("/stream/<video_id>")
-def stream_audio(video_id):
-    """Proxy the audio stream so browser CORS issues are avoided."""
-    piped_base = request.args.get("base", PIPED_INSTANCES[0])
-    stream_url, used_base = piped_stream_url(video_id, piped_base)
-
+@app.route('/stream/<video_id>')
+def stream(video_id):
+    stream_url = get_stream_url(video_id)
     if not stream_url:
-        return jsonify({"error": "Could not resolve stream"}), 502
-
+        return jsonify({'error': 'Could not resolve stream'}), 502
     try:
         upstream = requests.get(
             stream_url,
-            headers={**HEADERS, "Range": request.headers.get("Range", "bytes=0-")},
-            stream=True,
-            timeout=10,
+            headers={**HEADERS, 'Range': request.headers.get('Range', 'bytes=0-')},
+            stream=True, timeout=15, verify=False,
         )
-
         def generate():
             for chunk in upstream.iter_content(chunk_size=65536):
                 if chunk:
                     yield chunk
-
-        resp_headers = {
-            "Content-Type": upstream.headers.get("Content-Type", "audio/webm"),
-            "Accept-Ranges": "bytes",
-        }
-        if "Content-Length" in upstream.headers:
-            resp_headers["Content-Length"] = upstream.headers["Content-Length"]
-        if "Content-Range" in upstream.headers:
-            resp_headers["Content-Range"] = upstream.headers["Content-Range"]
-
-        return Response(
-            stream_with_context(generate()),
-            status=upstream.status_code,
-            headers=resp_headers,
-        )
+        resp_headers = {'Content-Type': upstream.headers.get('Content-Type', 'audio/webm'), 'Accept-Ranges': 'bytes'}
+        for h in ('Content-Length', 'Content-Range'):
+            if h in upstream.headers:
+                resp_headers[h] = upstream.headers[h]
+        return Response(stream_with_context(generate()), status=upstream.status_code, headers=resp_headers)
     except Exception as e:
-        return jsonify({"error": str(e)}), 502
+        return jsonify({'error': str(e)}), 502
 
-
-@app.route("/resolve/<video_id>")
+@app.route('/resolve/<video_id>')
 def resolve(video_id):
-    """Return the direct stream URL (for download link)."""
-    piped_base = request.args.get("base", PIPED_INSTANCES[0])
-    stream_url, _ = piped_stream_url(video_id, piped_base)
-    if not stream_url:
-        return jsonify({"error": "Could not resolve"}), 502
-    return jsonify({"url": stream_url})
+    url = get_stream_url(video_id)
+    if not url:
+        return jsonify({'error': 'Could not resolve'}), 502
+    return jsonify({'url': url})
 
-
-@app.route("/health")
+@app.route('/health')
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify({'status': 'ok'})
 
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
