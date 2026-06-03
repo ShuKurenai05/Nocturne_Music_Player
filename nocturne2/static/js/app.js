@@ -118,15 +118,23 @@ async function playTrack(idx) {
   playerBar.classList.remove("hidden");
   setPlayIcon(false);
 
-  audio.src = `/stream/${t.id}`;
-  audio.load();
-
   try {
+    // Fetch the raw extracted media link directly
+    const res = await fetch(`/resolve/${t.id}`);
+    const data = await res.json();
+    
+    if (!data.url) throw new Error("Resolution failed");
+
+    // Point the audio element directly to the streaming URL endpoint
+    audio.src = data.url;
+    audio.load();
+
     await audio.play();
     isPlaying = true;
     setPlayIcon(true);
   } catch(e) {
-    setStatus("Playback blocked or stream unavailable. Try another track.", "error");
+    setStatus("Playback failed or stream restricted. Trying next track...", "error");
+    if (idx < tracks.length - 1) playTrack(idx + 1);
   }
 
   prevBtn.disabled = idx <= 0;
