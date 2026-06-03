@@ -41,15 +41,15 @@ def ydl_search(query, limit=20):
     results = []
 
     ydl_opts = {
-        'quiet': True,
-        'no_warnings': True,
-        'extract_flat': 'in_playlist',
-        'nocheckcertificate': True,
-        'http_headers': HEADERS,
-        'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
-        'ignoreerrors': True,
-    }
-
+    'quiet': True,
+    'no_warnings': True,
+    'extract_flat': 'in_playlist',
+    'nocheckcertificate': True,
+    'http_headers': HEADERS,
+    'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
+    'ignoreerrors': True,
+    'cookiefile': os.path.join(os.path.dirname(__file__), 'cookies.txt'),
+}
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch{limit * 2}:{query} official audio", download=False)
@@ -82,13 +82,14 @@ def ydl_search(query, limit=20):
 
 def get_stream_url(video_id):
     ydl_opts = {
-        'quiet': True,
-        'no_warnings': True,
-        'nocheckcertificate': True,
-        'format': 'bestaudio[ext=webm]/bestaudio/best',
-        'http_headers': HEADERS,
-        'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
-    }
+    'quiet': True,
+    'no_warnings': True,
+    'nocheckcertificate': True,
+    'format': 'bestaudio[ext=webm]/bestaudio/best',
+    'http_headers': HEADERS,
+    'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
+    'cookiefile': os.path.join(os.path.dirname(__file__), 'cookies.txt'),
+}
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
