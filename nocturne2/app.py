@@ -30,26 +30,38 @@ def fmt_duration(s):
     return f"{s // 60}:{s % 60:02d}"
 
 def get_ydl_opts():
-    cookie_path = os.path.join(os.path.dirname(__file__), 'cookies.txt')
-    opts = {
+    # Use explicit absolute pathing based on the file location
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    cookie_path = os.path.join(base_dir, 'cookies.txt')
+    
+    # 100% transparency check: Look in the directory and log exactly what's there
+    if not os.path.exists(cookie_path):
+        available_files = os.listdir(base_dir)
+        raise FileNotFoundError(
+            f"CRITICAL ERROR: 'cookies.txt' was not found in the root directory! "
+            f"Files that actually exist there: {available_files}"
+        )
+
+    return {
         'quiet': True,
         'no_warnings': True,
         'nocheckcertificate': True,
         'http_headers': HEADERS,
         'extractor_args': {'youtube': {'player_client': ['web', 'mweb', 'ios']}},
         'ignoreerrors': True,
+        'cookiefile': cookie_path
     }
-    if os.path.exists(cookie_path):
-        opts['cookiefile'] = cookie_path
-    return opts
 
 def ydl_search(query, limit=20):
     results = []
-    ydl_opts = get_ydl_opts()
+    try:
+        ydl_opts = get_ydl_opts()
+    except Exception as e:
+        # Pass the file-not-found error directly to the frontend display
+        return [{'id': 'error', 'title': str(e), 'artist': 'System Configuration Error', 'duration_fmt': '0:00'}]
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # We explicitly drop 'extract_flat' here so the duration isn't evaluated as 0
             info = ydl.extract_info(f"ytsearch{limit + 5}:{query} official audio", download=False)
             if not info:
                 return []
@@ -81,11 +93,15 @@ def ydl_search(query, limit=20):
                     break
     except Exception as e:
         app.logger.error(f"Search error: {e}")
+        return [{'id': 'error', 'title': f"YouTube Block: {str(e)}", 'artist': 'Please update cookies.txt', 'duration_fmt': '0:00'}]
 
     return results
 
 def get_stream_url(video_id):
-    ydl_opts = get_ydl_opts()
+    try:
+        ydl_opts = get_ydl_opts()
+    except:
+        return None
     ydl_opts['format'] = 'bestaudio[ext=webm]/bestaudio/best'
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
