@@ -41,7 +41,7 @@ def get_ydl_opts():
         "nocheckcertificate": True,
         "http_headers": HEADERS,
         "ignoreerrors": True,
-        "extract_flat": False, # Must be False to fetch duration metadata
+        "extract_flat": False,
     }
     if os.path.exists(cookie_path):
         opts["cookiefile"] = cookie_path
@@ -62,7 +62,6 @@ def search():
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Performs search via yt-dlp matching your exact v1 configuration layout
             info = ydl.extract_info(f"ytsearch20:{q} official audio", download=False)
             if not info:
                 return jsonify([])
@@ -108,9 +107,10 @@ def stream_audio(video_id):
         if not stream_url:
             return jsonify({"error": "Could not extract stream URL"}), 502
 
+        # Fixed the bad string escape here
         upstream = requests.get(
             stream_url,
-            headers={**HEADERS, "Range": request.headers.get("Range", "bytes=0-\")},
+            headers={**HEADERS, "Range": request.headers.get("Range", "bytes=0-")},
             stream=True,
             timeout=15
         )
