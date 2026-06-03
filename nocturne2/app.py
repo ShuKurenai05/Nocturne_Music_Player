@@ -7,10 +7,10 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-HEADERS = {'User-Agent': 'Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36'}
+HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
-MIN_DURATION = 90    # seconds
-MAX_DURATION = 600   # seconds
+MIN_DURATION = 90
+MAX_DURATION = 600
 
 NOISE_WORDS = [
     'tutorial', 'how to', 'howto', 'review', 'unboxing', 'podcast',
@@ -23,7 +23,7 @@ NOISE_WORDS = [
 def is_music(title, duration):
     if not duration or duration < MIN_DURATION or duration > MAX_DURATION:
         return False
-    return not any(n in title.lower() for n in NOISE_WORDS)
+    return not any(w in title.lower() for w in NOISE_WORDS)
 
 def fmt_duration(s):
     s = int(s or 0)
@@ -36,10 +36,10 @@ def get_ydl_opts():
         'no_warnings': True,
         'nocheckcertificate': True,
         'http_headers': HEADERS,
-        'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
+        # Use fallback player clients to maximize success rates on hosting providers
+        'extractor_args': {'youtube': {'player_client': ['web', 'mweb', 'ios']}},
         'ignoreerrors': True,
     }
-    # Check if cookie file exists natively in the Render build slug
     if os.path.exists(cookie_path):
         opts['cookiefile'] = cookie_path
     return opts
@@ -50,7 +50,7 @@ def ydl_search(query, limit=20):
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # We fetch slightly more entries to compensate for the noise filter
+            # Adding 'official audio' helps target music specifically
             info = ydl.extract_info(f"ytsearch{limit + 5}:{query} official audio", download=False)
             if not info:
                 return []
@@ -76,9 +76,7 @@ def ydl_search(query, limit=20):
                     'artist': entry.get('uploader') or entry.get('channel') or 'Unknown Artist',
                     'thumbnail': f'https://i.ytimg.com/vi/{vid_id}/mqdefault.jpg',
                     'duration': dur,
-                    'duration_fmt': fmt_duration(dur),
-                    'source': 'yt-dlp',
-                    'piped_base': ''
+                    'duration_fmt': fmt_duration(dur)
                 })
                 if len(results) >= limit:
                     break
