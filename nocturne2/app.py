@@ -29,33 +29,47 @@ def fmt_duration(s):
     s = int(s or 0)
     return f"{s // 60}:{s % 60:02d}"
 
-def ydl_search(query, limit=20):
-    results = []
-    ydl_opts = {
+def get_ydl_opts():
+    cookie_path = os.path.join(os.path.dirname(__file__), 'cookies.txt')
+    opts = {
         'quiet': True,
         'no_warnings': True,
         'nocheckcertificate': True,
         'http_headers': HEADERS,
         'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
         'ignoreerrors': True,
-        'cookiefile': os.path.join(os.path.dirname(__file__), 'cookies.txt'),
     }
+    # Check if cookie file exists natively in the Render build slug
+    if os.path.exists(cookie_path):
+        opts['cookiefile'] = cookie_path
+    return opts
+
+def ydl_search(query, limit=20):
+    results = []
+    ydl_opts = get_ydl_opts()
+    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Gather individual track metadata completely to populate exact video duration length
+            # We fetch slightly more entries to compensate for the noise filter
             info = ydl.extract_info(f"ytsearch{limit + 5}:{query} official audio", download=False)
             if not info:
                 return []
-            for entry in (info.get('entries') or []):
+                
+            entries = info.get('entries') or []
+            for entry in entries:
                 if not entry:
                     continue
+                
                 dur = entry.get('duration') or 0
                 title = entry.get('title') or ''
+                
                 if not is_music(title, dur):
                     continue
+                    
                 vid_id = entry.get('id') or ''
                 if not vid_id:
                     continue
+                    
                 results.append({
                     'id': vid_id,
                     'title': title,
@@ -64,7 +78,7 @@ def ydl_search(query, limit=20):
                     'duration': dur,
                     'duration_fmt': fmt_duration(dur),
                     'source': 'yt-dlp',
-                    'piped_base': '' # Kept blank to maintain front-end property alignment
+                    'piped_base': ''
                 })
                 if len(results) >= limit:
                     break
@@ -74,15 +88,8 @@ def ydl_search(query, limit=20):
     return results
 
 def get_stream_url(video_id):
-    ydl_opts = {
-        'quiet': True,
-        'no_warnings': True,
-        'nocheckcertificate': True,
-        'format': 'bestaudio[ext=webm]/bestaudio/best',
-        'http_headers': HEADERS,
-        'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
-        'cookiefile': os.path.join(os.path.dirname(__file__), 'cookies.txt'),
-    }
+    ydl_opts = get_ydl_opts()
+    ydl_opts['format'] = 'bestaudio[ext=webm]/bestaudio/best'
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
