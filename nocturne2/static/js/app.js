@@ -118,7 +118,6 @@ async function playTrack(idx) {
   playerBar.classList.remove("hidden");
   setPlayIcon(false);
 
-  // Directly call the local proxy stream endpoint
   audio.src = `/stream/${t.id}`;
   audio.load();
 
