@@ -41,18 +41,20 @@ def ydl_search(query, limit=20):
     results = []
 
     ydl_opts = {
-    'quiet': True,
-    'no_warnings': True,
-    'extract_flat': 'in_playlist',
-    'nocheckcertificate': True,
-    'http_headers': HEADERS,
-    'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
-    'ignoreerrors': True,
-    'cookiefile': os.path.join(os.path.dirname(__file__), 'cookies.txt'),
-}
+        'quiet': True,
+        'no_warnings': True,
+        # REMOVED 'extract_flat' so yt-dlp gathers individual item lengths properly
+        'nocheckcertificate': True,
+        'http_headers': HEADERS,
+        'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
+        'ignoreerrors': True,
+        'cookiefile': os.path.join(os.path.dirname(__file__), 'cookies.txt'),
+    }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"ytsearch{limit * 2}:{query} official audio", download=False)
+            # We search for slightly fewer initial items (limit + 5) since parsing deep 
+            # item metadata takes a little bit longer.
+            info = ydl.extract_info(f"ytsearch{limit + 5}:{query} official audio", download=False)
             if not info:
                 return []
             for entry in (info.get('entries') or []):
@@ -68,7 +70,7 @@ def ydl_search(query, limit=20):
                 results.append({
                     'id': vid_id,
                     'title': title,
-                    'artist': entry.get('uploader') or entry.get('channel') or '',
+                    'artist': entry.get('uploader') or entry.get('channel') or 'Unknown Artist',
                     'thumbnail': f'https://i.ytimg.com/vi/{vid_id}/mqdefault.jpg',
                     'duration': dur,
                     'duration_fmt': fmt(dur),
@@ -82,14 +84,14 @@ def ydl_search(query, limit=20):
 
 def get_stream_url(video_id):
     ydl_opts = {
-    'quiet': True,
-    'no_warnings': True,
-    'nocheckcertificate': True,
-    'format': 'bestaudio[ext=webm]/bestaudio/best',
-    'http_headers': HEADERS,
-    'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
-    'cookiefile': os.path.join(os.path.dirname(__file__), 'cookies.txt'),
-}
+        'quiet': True,
+        'no_warnings': True,
+        'nocheckcertificate': True,
+        'format': 'bestaudio[ext=webm]/bestaudio/best',
+        'http_headers': HEADERS,
+        'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
+        'cookiefile': os.path.join(os.path.dirname(__file__), 'cookies.txt'),
+    }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
