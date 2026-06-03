@@ -1,6 +1,5 @@
 "use strict";
 
-// ── State ──────────────────────────────────────────────────────────────────
 let tracks = [];
 let currentIdx = -1;
 let isPlaying = false;
@@ -8,7 +7,6 @@ let isSeeking = false;
 
 const audio = new Audio();
 
-// ── DOM ────────────────────────────────────────────────────────────────────
 const searchInput = document.getElementById("searchInput");
 const searchBtn   = document.getElementById("searchBtn");
 const statusMsg   = document.getElementById("statusMsg");
@@ -28,7 +26,6 @@ const progFill    = document.getElementById("progFill");
 const progThumb   = document.getElementById("progThumb");
 const progTrack   = document.getElementById("progTrack");
 
-// ── Utilities ──────────────────────────────────────────────────────────────
 function fmt(s) {
   const m = Math.floor(s / 60), sec = Math.floor(s % 60);
   return `${m}:${String(sec).padStart(2, "0")}`;
@@ -40,7 +37,6 @@ function setStatus(msg, type = "") {
   statusMsg.classList.toggle("hidden", !msg);
 }
 
-// ── Search ─────────────────────────────────────────────────────────────────
 async function doSearch(q) {
   const query = (q || searchInput.value).trim();
   if (!query) return;
@@ -68,7 +64,6 @@ async function doSearch(q) {
   }
 }
 
-// ── Render tracks ──────────────────────────────────────────────────────────
 function renderTracks() {
   trackList.innerHTML = tracks.map((t, i) => `
     <div class="track ${i === currentIdx ? "active" : ""}" data-idx="${i}">
@@ -93,7 +88,6 @@ function renderTracks() {
     </div>
   `).join("");
 
-  // click on track row → play
   trackList.querySelectorAll(".track").forEach(el => {
     el.addEventListener("click", (e) => {
       if (e.target.closest(".track-dl-btn")) return;
@@ -101,7 +95,6 @@ function renderTracks() {
     });
   });
 
-  // click download button
   trackList.querySelectorAll(".track-dl-btn").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -114,22 +107,19 @@ function escHtml(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-// ── Playback ───────────────────────────────────────────────────────────────
 async function playTrack(idx) {
   if (idx < 0 || idx >= tracks.length) return;
   currentIdx = idx;
   const t = tracks[idx];
 
-  // update player bar immediately with metadata
   playerThumb.src  = t.thumbnail || "";
   playerTitle.textContent  = t.title;
   playerArtist.textContent = t.artist;
   playerBar.classList.remove("hidden");
-  setPlayIcon(false); // show spinner feel
+  setPlayIcon(false);
 
-  // set audio source through our proxy
-  const streamUrl = `/stream/${t.id}?base=${encodeURIComponent(t.piped_base || "")}`;
-  audio.src = streamUrl;
+  // Directly call the local proxy stream endpoint
+  audio.src = `/stream/${t.id}`;
   audio.load();
 
   try {
@@ -142,15 +132,13 @@ async function playTrack(idx) {
 
   prevBtn.disabled = idx <= 0;
   nextBtn.disabled = idx >= tracks.length - 1;
-
-  // re-render to update active highlight
   renderTracks();
 }
 
 function setPlayIcon(playing) {
   playIcon.innerHTML = playing
-    ? `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`  // pause
-    : `<path d="M8 5v14l11-7z"/>`;                     // play
+    ? `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`
+    : `<path d="M8 5v14l11-7z"/>`;
 }
 
 function togglePlay() {
@@ -167,11 +155,10 @@ function togglePlay() {
   }
 }
 
-// ── Download ───────────────────────────────────────────────────────────────
 async function downloadTrack(idx) {
   const t = tracks[idx];
   try {
-    const res = await fetch(`/resolve/${t.id}?base=${encodeURIComponent(t.piped_base || "")}`);
+    const res = await fetch(`/resolve/${t.id}`);
     const data = await res.json();
     if (!data.url) throw new Error("No URL");
     const a = document.createElement("a");
@@ -185,12 +172,10 @@ async function downloadTrack(idx) {
   }
 }
 
-// Download current playing track from player bar
 dlBtn.addEventListener("click", () => {
   if (currentIdx >= 0) downloadTrack(currentIdx);
 });
 
-// ── Progress bar ───────────────────────────────────────────────────────────
 audio.addEventListener("timeupdate", () => {
   if (!audio.duration || isSeeking) return;
   const pct = (audio.currentTime / audio.duration) * 100;
@@ -205,7 +190,6 @@ audio.addEventListener("ended", () => {
   else { isPlaying = false; setPlayIcon(false); }
 });
 
-// Click/drag on progress track
 progTrack.addEventListener("mousedown", (e) => {
   isSeeking = true;
   seekFromEvent(e);
@@ -225,12 +209,10 @@ function seekFromEvent(e) {
   if (audio.duration) audio.currentTime = pct * audio.duration;
 }
 
-// ── Controls ───────────────────────────────────────────────────────────────
 playBtn.addEventListener("click", togglePlay);
 prevBtn.addEventListener("click", () => playTrack(currentIdx - 1));
 nextBtn.addEventListener("click", () => playTrack(currentIdx + 1));
 
-// ── Search triggers ────────────────────────────────────────────────────────
 searchBtn.addEventListener("click", () => doSearch());
 searchInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
 
@@ -238,7 +220,6 @@ document.querySelectorAll(".hint-tag").forEach(tag => {
   tag.addEventListener("click", () => doSearch(tag.dataset.q));
 });
 
-// keyboard shortcuts
 document.addEventListener("keydown", (e) => {
   if (e.target === searchInput) return;
   if (e.code === "Space") { e.preventDefault(); togglePlay(); }
