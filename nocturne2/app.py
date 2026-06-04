@@ -1,6 +1,7 @@
 import os
 import yt_dlp
-from flask import Flask, jsonify, request, render_template
+import tempfile
+from flask import Flask, jsonify, request, render_template, send_file
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -9,10 +10,8 @@ CORS(app)
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
-
-MIN_DURATION = 90    # 1.5 minutes
-MAX_DURATION = 600   # 10 minutes
-
+MIN_DURATION = 90
+MAX_DURATION = 600
 NOISE_WORDS = [
     "tutorial", "how to", "howto", "review", "unboxing", "podcast",
     "interview", "lecture", "lesson", "explained", "documentary",
@@ -30,10 +29,9 @@ def fmt_duration(s):
     s = int(s or 0)
     return f"{s // 60}:{s % 60:02d}"
 
-def get_ydl_opts():
+def get_ydl_opts(extra={}):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     cookie_path = os.path.join(base_dir, "cookies.txt")
-    
     opts = {
         "quiet": True,
         "no_warnings": True,
@@ -44,6 +42,7 @@ def get_ydl_opts():
     }
     if os.path.exists(cookie_path):
         opts["cookiefile"] = cookie_path
+    opts.update(extra)
     return opts
 
 @app.route("/")
@@ -55,31 +54,22 @@ def search():
     q = request.args.get("q", "").strip()
     if not q:
         return jsonify([])
-
     results = []
-    ydl_opts = get_ydl_opts()
-
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(get_ydl_opts()) as ydl:
             info = ydl.extract_info(f"ytsearch20:{q} official audio", download=False)
             if not info:
                 return jsonify([])
-
-            entries = info.get("entries") or []
-            for entry in entries:
+            for entry in (info.get("entries") or []):
                 if not entry:
                     continue
-
                 title = entry.get("title", "")
                 duration = entry.get("duration", 0)
-
                 if not is_music(title, duration):
                     continue
-
                 vid_id = entry.get("id", "")
                 if not vid_id:
                     continue
-
                 results.append({
                     "id": vid_id,
                     "title": title,
@@ -89,9 +79,39 @@ def search():
                     "duration_fmt": fmt_duration(duration)
                 })
     except Exception as e:
-        print(f"Search Extraction Error: {e}")
-
+        print(f"Search error: {e}")
     return jsonify(results)
+
+@app.route("/download/<video_id>")
+def download(video_id):
+    tmp_dir = tempfile.mkdtemp()
+    out_path = os.path.join(tmp_dir, "%(title)s.%(ext)s")
+    try:
+        with yt_dlp.YoutubeDL(get_ydl_opts({
+            "extract_flat": False,
+            "format": "bestaudio/best",
+            "outtmpl": out_path,
+            "postprocessors": [{
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }],
+        })) as ydl:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=True)
+            title = info.get("title", "audio")
+            clean = "".join(c for c in title if c.isalnum() or c in " -_").strip()
+            # find the downloaded file
+            for f in os.listdir(tmp_dir):
+                if f.endswith(".mp3"):
+                    return send_file(
+                        os.path.join(tmp_dir, f),
+                        as_attachment=True,
+                        download_name=f"{clean}.mp3",
+                        mimetype="audio/mpeg"
+                    )
+    except Exception as e:
+        print(f"Download error: {e}")
+    return jsonify({"error": "Download failed"}), 502
 
 @app.route("/health")
 def health():
