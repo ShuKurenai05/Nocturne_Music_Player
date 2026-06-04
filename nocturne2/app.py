@@ -22,7 +22,7 @@ NOISE_WORDS = [
 ]
 
 def is_music(title, duration):
-    if not duration or duration < MIN_DURATION or duration > MAX_DURATION:
+    if duration and (duration < MIN_DURATION or duration > MAX_DURATION):
         return False
     return not any(w in title.lower() for w in NOISE_WORDS)
 
@@ -40,7 +40,7 @@ def get_ydl_opts():
         "nocheckcertificate": True,
         "http_headers": HEADERS,
         "ignoreerrors": True,
-        "extract_flat": False,
+        "extract_flat": True,
     }
     if os.path.exists(cookie_path):
         opts["cookiefile"] = cookie_path
