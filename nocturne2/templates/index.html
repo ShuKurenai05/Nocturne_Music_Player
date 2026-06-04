@@ -1,61 +1,153 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Nocturne</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/css/style.css"/>
 </head>
 <body>
 
-<div class="app">
+<div class="layout">
 
-  <!-- Header -->
-  <header class="header">
+  <!-- Sidebar -->
+  <aside class="sidebar">
     <div class="logo">NOC<span>TURNE</span></div>
-    <p class="tagline">Every song. Any time.</p>
-  </header>
 
-  <!-- Search -->
-  <div class="search-wrap">
-    <div class="search-box">
-      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input id="searchInput" type="text" placeholder="Search any song, artist, album…" autocomplete="off" spellcheck="false" />
-      <button id="searchBtn">Search</button>
+    <nav class="nav">
+      <button class="nav-btn active" data-page="home">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        Home
+      </button>
+      <button class="nav-btn" data-page="search">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        Search
+      </button>
+      <button class="nav-btn" data-page="favorites">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        Favorites
+      </button>
+      <button class="nav-btn" data-page="playlists">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/></svg>
+        Playlists
+      </button>
+      <button class="nav-btn" data-page="offline">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        Offline
+      </button>
+    </nav>
+
+    <div class="sidebar-genres">
+      <div class="section-title">Genres</div>
+      <button class="genre-btn" data-q="Bollywood hits">🎬 Bollywood</button>
+      <button class="genre-btn" data-q="English pop hits 2024">🌍 English</button>
+      <button class="genre-btn" data-q="Malayalam songs">🌴 Malayalam</button>
+      <button class="genre-btn" data-q="lofi hip hop">🎧 Lo-Fi</button>
+      <button class="genre-btn" data-q="Tamil hits">🎵 Tamil</button>
+      <button class="genre-btn" data-q="K-pop hits">🇰🇷 K-Pop</button>
+      <button class="genre-btn" data-q="hip hop rap">🎤 Hip-Hop</button>
+      <button class="genre-btn" data-q="classical music">🎻 Classical</button>
     </div>
-    <p class="search-hint">Try: <span class="hint-tag" data-q="Taylor Swift">Taylor Swift</span> · <span class="hint-tag" data-q="Drake">Drake</span> · <span class="hint-tag" data-q="The Weeknd">The Weeknd</span> · <span class="hint-tag" data-q="Coldplay">Coldplay</span> · <span class="hint-tag" data-q="Arijit Singh">Arijit Singh</span></p>
-  </div>
+  </aside>
 
-  <!-- Status -->
-  <div id="statusMsg" class="status-msg hidden"></div>
+  <!-- Main content -->
+  <main class="main">
 
-  <!-- Results -->
-  <div id="trackList" class="track-list"></div>
+    <!-- HOME PAGE -->
+    <div id="page-home" class="page active">
+      <div class="page-header">
+        <h2>Good evening, Yash 👋</h2>
+        <p>What do you want to listen to today?</p>
+      </div>
+      <div class="search-box home-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="searchInput" type="text" placeholder="Search any song, artist, album…" autocomplete="off" spellcheck="false"/>
+        <button id="searchBtn">Search</button>
+      </div>
+      <div class="hint-row">
+        Try: <span class="hint-tag" data-q="Taylor Swift">Taylor Swift</span> · <span class="hint-tag" data-q="Drake">Drake</span> · <span class="hint-tag" data-q="Arijit Singh">Arijit Singh</span> · <span class="hint-tag" data-q="The Weeknd">The Weeknd</span> · <span class="hint-tag" data-q="Coldplay">Coldplay</span>
+      </div>
+      <div id="statusMsg" class="status-msg hidden"></div>
+      <div id="trackList" class="track-list"></div>
+    </div>
 
+    <!-- SEARCH PAGE -->
+    <div id="page-search" class="page">
+      <div class="page-header"><h2>Search</h2></div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="searchInput2" type="text" placeholder="Search any song, artist, album…" autocomplete="off" spellcheck="false"/>
+        <button id="searchBtn2">Search</button>
+      </div>
+      <div id="statusMsg2" class="status-msg hidden"></div>
+      <div id="trackList2" class="track-list"></div>
+    </div>
+
+    <!-- FAVORITES PAGE -->
+    <div id="page-favorites" class="page">
+      <div class="page-header">
+        <h2>Favorites</h2>
+        <p>Songs you've loved</p>
+      </div>
+      <div id="favoritesList" class="track-list"></div>
+      <div id="favEmpty" class="empty-msg">No favorites yet. Heart a song to save it here.</div>
+    </div>
+
+    <!-- PLAYLISTS PAGE -->
+    <div id="page-playlists" class="page">
+      <div class="page-header"><h2>Playlists</h2></div>
+      <div class="playlist-create">
+        <input id="playlistNameInput" type="text" placeholder="New playlist name…"/>
+        <button id="createPlaylistBtn">+ Create</button>
+      </div>
+      <div id="playlistsContainer"></div>
+      <div id="playlistEmpty" class="empty-msg">No playlists yet. Create one above.</div>
+    </div>
+
+    <!-- OFFLINE PAGE -->
+    <div id="page-offline" class="page">
+      <div class="page-header">
+        <h2>Offline Downloads</h2>
+        <p>Songs saved to your device</p>
+      </div>
+      <div id="offlineList" class="track-list"></div>
+      <div id="offlineEmpty" class="empty-msg">No downloads yet. Click ↓ on any song to download it.</div>
+    </div>
+
+  </main>
 </div>
 
-<!-- Player bar -->
+<!-- Player Bar -->
 <div id="playerBar" class="player-bar hidden">
   <div class="player-left">
-    <img id="playerThumb" src="" alt="" class="player-thumb" />
+    <img id="playerThumb" src="" alt="" class="player-thumb"/>
     <div class="player-meta">
       <div id="playerTitle" class="player-title">—</div>
       <div id="playerArtist" class="player-artist">—</div>
     </div>
+    <button class="ctrl-sm fav-btn" id="favBtn" title="Add to favorites">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    </button>
   </div>
 
   <div class="player-center">
     <div class="player-controls">
-      <button class="ctrl" id="prevBtn" title="Previous" disabled>
+      <button class="ctrl" id="shuffleBtn" title="Shuffle">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+      </button>
+      <button class="ctrl" id="prevBtn" disabled>
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
       </button>
-      <button class="ctrl play-pause" id="playBtn" title="Play/Pause">
+      <button class="ctrl play-pause" id="playBtn">
         <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
       </button>
-      <button class="ctrl" id="nextBtn" title="Next" disabled>
+      <button class="ctrl" id="nextBtn" disabled>
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="m6 18 8.5-6L6 6v12zm2-8.14 5.5 3.64L8 17.14V9.86zM16 6h2v12h-2z"/></svg>
+      </button>
+      <button class="ctrl" id="repeatBtn" title="Repeat">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
       </button>
     </div>
     <div class="progress-row">
@@ -69,9 +161,21 @@
   </div>
 
   <div class="player-right">
-    <button class="ctrl-sm" id="dlBtn" title="Download">
+    <button class="ctrl-sm" id="dlBtn" title="Download MP3">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     </button>
+    <button class="ctrl-sm" id="addToPlaylistBtn" title="Add to playlist">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Add to playlist modal -->
+<div id="playlistModal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-title">Add to Playlist</div>
+    <div id="modalPlaylistList"></div>
+    <button class="modal-close" id="modalClose">Cancel</button>
   </div>
 </div>
 
