@@ -10,7 +10,11 @@ app.config["JWT_SECRET_KEY"] = os.environ.get("SECRET_KEY", "nocturne_dev_secret
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
 jwt = JWTManager(app)
 
-sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+try:
+    sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+except Exception as e:
+    print(f"Supabase init error: {e}")
+    sb = None
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 MIN_DURATION = 90
