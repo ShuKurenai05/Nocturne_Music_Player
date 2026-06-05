@@ -117,34 +117,39 @@ def search():
 
 @app.route("/trending")
 def trending():
-    genres = [
-        "Bollywood hits 2024", "English pop 2024", "Tamil hits",
-        "The Weeknd", "Arijit Singh", "Drake"
+    queries = [
+        "Bollywood hits 2024 official audio",
+        "English pop 2024 official audio", 
+        "The Weeknd official audio",
+        "Arijit Singh official audio",
     ]
-    import random
-    q = random.choice(genres)
     results = []
+    seen = set()
     try:
         with yt_dlp.YoutubeDL(get_ydl_opts()) as ydl:
-            info = ydl.extract_info(f"ytsearch10:{q} official audio", download=False)
-            if not info:
-                return jsonify([])
-            for entry in (info.get("entries") or []):
-                if not entry:
+            for q in queries:
+                if len(results) >= 12:
+                    break
+                info = ydl.extract_info(f"ytsearch5:{q}", download=False)
+                if not info:
                     continue
-                title = entry.get("title", "")
-                duration = entry.get("duration", 0)
-                if not is_music(title, duration):
-                    continue
-                vid_id = entry.get("id", "")
-                if not vid_id:
-                    continue
-                results.append({
-                    "id": vid_id, "title": title,
-                    "artist": entry.get("uploader") or entry.get("channel") or "Unknown",
-                    "thumbnail": f"https://i.ytimg.com/vi/{vid_id}/mqdefault.jpg",
-                    "duration": duration, "duration_fmt": fmt_duration(duration)
-                })
+                for entry in (info.get("entries") or []):
+                    if not entry:
+                        continue
+                    title = entry.get("title", "")
+                    duration = entry.get("duration", 0)
+                    vid_id = entry.get("id", "")
+                    if not vid_id or vid_id in seen:
+                        continue
+                    if not is_music(title, duration):
+                        continue
+                    seen.add(vid_id)
+                    results.append({
+                        "id": vid_id, "title": title,
+                        "artist": entry.get("uploader") or entry.get("channel") or "Unknown",
+                        "thumbnail": f"https://i.ytimg.com/vi/{vid_id}/mqdefault.jpg",
+                        "duration": duration, "duration_fmt": fmt_duration(duration)
+                    })
     except Exception as e:
         print(f"Trending error: {e}")
     return jsonify(results)
