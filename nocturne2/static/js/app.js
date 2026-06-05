@@ -13,51 +13,51 @@ let authToken = localStorage.getItem("nocturne_token");
 let currentUser = localStorage.getItem("nocturne_user");
 
 // ── DOM ────────────────────────────────────────────────────────────────────
-const authScreen    = document.getElementById("authScreen");
-const appShell      = document.getElementById("appShell");
-const authUsername  = document.getElementById("authUsername");
-const authPassword  = document.getElementById("authPassword");
-const authSubmit    = document.getElementById("authSubmit");
-const authError     = document.getElementById("authError");
-const topbarUser    = document.getElementById("topbarUser");
-const logoutBtn     = document.getElementById("logoutBtn");
-const menuBtn       = document.getElementById("menuBtn");
-const sidebar       = document.getElementById("sidebar");
-const sidebarOverlay= document.getElementById("sidebarOverlay");
-const searchInput   = document.getElementById("searchInput");
-const searchBtn     = document.getElementById("searchBtn");
-const searchInput2  = document.getElementById("searchInput2");
-const searchBtn2    = document.getElementById("searchBtn2");
-const statusMsg     = document.getElementById("statusMsg");
-const statusMsg2    = document.getElementById("statusMsg2");
-const trackList     = document.getElementById("trackList");
-const trackList2    = document.getElementById("trackList2");
-const trendingList  = document.getElementById("trendingList");
-const trendingSection = document.getElementById("trendingSection");
-const playerBar     = document.getElementById("playerBar");
-const playerThumb   = document.getElementById("playerThumb");
-const playerTitle   = document.getElementById("playerTitle");
-const playerArtist  = document.getElementById("playerArtist");
-const playBtn       = document.getElementById("playBtn");
-const playIcon      = document.getElementById("playIcon");
-const prevBtn       = document.getElementById("prevBtn");
-const nextBtn       = document.getElementById("nextBtn");
-const shuffleBtn    = document.getElementById("shuffleBtn");
-const repeatBtn     = document.getElementById("repeatBtn");
-const curTimeEl     = document.getElementById("curTime");
-const durTimeEl     = document.getElementById("durTime");
-const progFill      = document.getElementById("progFill");
-const progThumb     = document.getElementById("progThumb");
-const progTrack     = document.getElementById("progTrack");
-const favBtn        = document.getElementById("favBtn");
+const authScreen       = document.getElementById("authScreen");
+const appShell         = document.getElementById("appShell");
+const authUsername     = document.getElementById("authUsername");
+const authPassword     = document.getElementById("authPassword");
+const authSubmit       = document.getElementById("authSubmit");
+const authError        = document.getElementById("authError");
+const topbarUser       = document.getElementById("topbarUser");
+const logoutBtn        = document.getElementById("logoutBtn");
+const menuBtn          = document.getElementById("menuBtn");
+const sidebar          = document.getElementById("sidebar");
+const sidebarOverlay   = document.getElementById("sidebarOverlay");
+const searchInput      = document.getElementById("searchInput");
+const searchBtn        = document.getElementById("searchBtn");
+const searchInput2     = document.getElementById("searchInput2");
+const searchBtn2       = document.getElementById("searchBtn2");
+const statusMsg        = document.getElementById("statusMsg");
+const statusMsg2       = document.getElementById("statusMsg2");
+const trackList        = document.getElementById("trackList");
+const trackList2       = document.getElementById("trackList2");
+const trendingList     = document.getElementById("trendingList");
+const trendingSection  = document.getElementById("trendingSection");
+const playerBar        = document.getElementById("playerBar");
+const playerThumb      = document.getElementById("playerThumb");
+const playerTitle      = document.getElementById("playerTitle");
+const playerArtist     = document.getElementById("playerArtist");
+const playBtn          = document.getElementById("playBtn");
+const playIcon         = document.getElementById("playIcon");
+const prevBtn          = document.getElementById("prevBtn");
+const nextBtn          = document.getElementById("nextBtn");
+const shuffleBtn       = document.getElementById("shuffleBtn");
+const repeatBtn        = document.getElementById("repeatBtn");
+const curTimeEl        = document.getElementById("curTime");
+const durTimeEl        = document.getElementById("durTime");
+const progFill         = document.getElementById("progFill");
+const progThumb        = document.getElementById("progThumb");
+const progTrack        = document.getElementById("progTrack");
+const favBtn           = document.getElementById("favBtn");
 const addToPlaylistBtn = document.getElementById("addToPlaylistBtn");
-const videoBtn      = document.getElementById("videoBtn");
-const playlistModal = document.getElementById("playlistModal");
-const modalClose    = document.getElementById("modalClose");
-const modalPlaylistList = document.getElementById("modalPlaylistList");
-const createPlaylistBtn = document.getElementById("createPlaylistBtn");
-const playlistNameInput = document.getElementById("playlistNameInput");
-const greetingHeader = document.getElementById("greetingHeader");
+const videoBtn         = document.getElementById("videoBtn");
+const playlistModal    = document.getElementById("playlistModal");
+const modalClose       = document.getElementById("modalClose");
+const modalPlaylistList= document.getElementById("modalPlaylistList");
+const createPlaylistBtn= document.getElementById("createPlaylistBtn");
+const playlistNameInput= document.getElementById("playlistNameInput");
+const greetingHeader   = document.getElementById("greetingHeader");
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 let authMode = "login";
@@ -108,6 +108,7 @@ function enterApp() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   greetingHeader.innerHTML = `<h2>${greeting}, ${currentUser} 👋</h2><p>What do you want to listen to today?</p>`;
+  loadFavsCache();
   loadTrending();
 }
 
@@ -120,25 +121,24 @@ logoutBtn.addEventListener("click", () => {
   authUsername.value = ""; authPassword.value = "";
 });
 
-// Auto-login if token exists
 if (authToken && currentUser) enterApp();
 
-// ── Sidebar toggle ─────────────────────────────────────────────────────────
+// ── Sidebar ────────────────────────────────────────────────────────────────
 menuBtn.addEventListener("click", () => {
   const isOpen = sidebar.classList.contains("open");
   if (isOpen) {
     sidebar.classList.remove("open");
     sidebarOverlay.classList.add("hidden");
   } else {
-    sidebar.classList.remove("hidden"); // remove display:none first
     sidebar.classList.add("open");
     sidebarOverlay.classList.remove("hidden");
   }
 });
+
 sidebarOverlay.addEventListener("click", closeSidebar);
+
 function closeSidebar() {
   sidebar.classList.remove("open");
-  sidebar.classList.add("hidden");
   sidebarOverlay.classList.add("hidden");
 }
 
@@ -151,7 +151,6 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
     document.getElementById(`page-${btn.dataset.page}`).classList.add("active");
     closeSidebar();
     if (btn.dataset.page === "home") {
-      // reset search and show trending
       searchInput.value = "";
       trackList.innerHTML = "";
       statusMsg.classList.add("hidden");
@@ -163,17 +162,17 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
 });
 
 // ── YouTube IFrame API ─────────────────────────────────────────────────────
-const ytTag = document.createElement('script');
+const ytTag = document.createElement("script");
 ytTag.src = "https://www.youtube.com/iframe_api";
-document.getElementsByTagName('script')[0].parentNode.insertBefore(ytTag, document.getElementsByTagName('script')[0]);
+document.getElementsByTagName("script")[0].parentNode.insertBefore(ytTag, document.getElementsByTagName("script")[0]);
 
 window.onYouTubeIframeAPIReady = function () {
-  const div = document.createElement('div');
-  div.id = 'yt-hidden-player';
-  div.style.cssText = 'position:absolute;top:-9999px;left:-9999px;';
+  const div = document.createElement("div");
+  div.id = "yt-hidden-player";
+  div.style.cssText = "position:absolute;top:-9999px;left:-9999px;";
   document.body.appendChild(div);
-  ytPlayer = new YT.Player('yt-hidden-player', {
-    height: '200', width: '200',
+  ytPlayer = new YT.Player("yt-hidden-player", {
+    height: "200", width: "200",
     playerVars: { playsinline: 1, controls: 0, disablekb: 1 },
     events: { onStateChange: onPlayerStateChange, onError: onPlayerError }
   });
@@ -195,6 +194,9 @@ function setStatus(el, msg, type = "") {
 function authHeaders() {
   return { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` };
 }
+function isFaved(id) {
+  return window._favsCache && window._favsCache.some(t => t.track_id === id);
+}
 
 // ── Trending ───────────────────────────────────────────────────────────────
 async function loadTrending() {
@@ -203,17 +205,40 @@ async function loadTrending() {
     const data = await res.json();
     if (!data.length) { trendingSection.classList.add("hidden"); return; }
     trendingSection.classList.remove("hidden");
-    renderTrackListInto(trendingList, data);
+    renderTrendingGrid(data);
   } catch { trendingSection.classList.add("hidden"); }
 }
 
+function renderTrendingGrid(trackArr) {
+  window._trendingTracks = trackArr;
+  trendingList.innerHTML = trackArr.map((t, i) => `
+    <div class="trend-card" data-idx="${i}">
+      <div class="trend-thumb-wrap">
+        <img src="${t.thumbnail}" alt="" loading="lazy"/>
+        <div class="trend-play-overlay">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+      </div>
+      <div class="trend-title">${escHtml(t.title)}</div>
+      <div class="trend-artist">${escHtml(t.artist)}</div>
+    </div>
+  `).join("");
+
+  trendingList.querySelectorAll(".trend-card").forEach(card => {
+    card.addEventListener("click", () => {
+      tracks = window._trendingTracks;
+      playTrack(+card.dataset.idx);
+    });
+  });
+}
+
 // ── Search ─────────────────────────────────────────────────────────────────
-async function doSearch(q, listEl, statusEl, isTrending = false) {
+async function doSearch(q, listEl, statusEl) {
   const query = (q || "").trim();
   if (!query) return;
   setStatus(statusEl, "Searching…", "loading");
   listEl.innerHTML = "";
-  if (!isTrending) trendingSection.classList.add("hidden");
+  trendingSection.classList.add("hidden");
 
   try {
     const res = await fetch(`/search?q=${encodeURIComponent(query)}`);
@@ -232,7 +257,10 @@ searchBtn2.addEventListener("click", () => doSearch(searchInput2.value, trackLis
 searchInput2.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(searchInput2.value, trackList2, statusMsg2); });
 
 document.querySelectorAll(".hint-tag").forEach(tag => {
-  tag.addEventListener("click", () => { searchInput.value = tag.dataset.q; doSearch(tag.dataset.q, trackList, statusMsg); });
+  tag.addEventListener("click", () => {
+    searchInput.value = tag.dataset.q;
+    doSearch(tag.dataset.q, trackList, statusMsg);
+  });
 });
 
 document.querySelectorAll(".genre-btn").forEach(btn => {
@@ -247,27 +275,26 @@ document.querySelectorAll(".genre-btn").forEach(btn => {
   });
 });
 
-// ── Render helpers ─────────────────────────────────────────────────────────
-function isFaved(id) { return window._favsCache && window._favsCache.some(t => t.track_id === id); }
-
-function renderTrackListInto(listEl, trackArr) {
-  const saved = tracks;
-  tracks = trackArr;
-  listEl.innerHTML = trackArr.map((t, i) => `
-    <div class="track ${i === currentIdx && listEl === trackList ? "active" : ""}" data-idx="${i}">
+// ── Render track list ──────────────────────────────────────────────────────
+function renderTracks(listEl) {
+  listEl = listEl || trackList;
+  listEl.innerHTML = tracks.map((t, i) => `
+    <div class="track ${i === currentIdx ? "active" : ""}" data-idx="${i}">
       <div class="track-num">
-        ${i === currentIdx && listEl === trackList
+        ${i === currentIdx
           ? `<div class="bars"><i></i><i></i><i></i><i></i></div>`
           : `<span>${i + 1}</span>`}
       </div>
-      <img class="track-thumb" src="${t.thumbnail || t.thumbnail}" alt="" loading="lazy"/>
+      <img class="track-thumb" src="${t.thumbnail}" alt="" loading="lazy"/>
       <div class="track-info">
         <div class="track-name">${escHtml(t.title)}</div>
         <div class="track-artist">${escHtml(t.artist)}</div>
       </div>
-      <span class="track-dur">${t.duration_fmt || ''}</span>
-      <button class="track-action ${isFaved(t.id || t.track_id) ? 'faved' : ''}" data-action="fav" data-idx="${i}" title="Favorite">
-        <svg viewBox="0 0 24 24" fill="${isFaved(t.id || t.track_id) ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      <span class="track-dur">${t.duration_fmt || ""}</span>
+      <button class="track-action ${isFaved(t.id) ? "faved" : ""}" data-action="fav" data-idx="${i}" title="Favorite">
+        <svg viewBox="0 0 24 24" fill="${isFaved(t.id) ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>
       </button>
     </div>
   `).join("");
@@ -275,22 +302,23 @@ function renderTrackListInto(listEl, trackArr) {
   listEl.querySelectorAll(".track").forEach(el => {
     el.addEventListener("click", e => {
       if (e.target.closest("[data-action]")) return;
-      tracks = trackArr;
       playTrack(+el.dataset.idx);
     });
   });
   listEl.querySelectorAll("[data-action='fav']").forEach(btn => {
     btn.addEventListener("click", e => {
       e.stopPropagation();
-      toggleFav(trackArr[+btn.dataset.idx]);
+      toggleFav(tracks[+btn.dataset.idx]);
     });
   });
-  tracks = saved;
 }
 
-function renderTracks(listEl) {
-  listEl = listEl || trackList;
-  renderTrackListInto(listEl, tracks);
+function renderTrackListInto(listEl, trackArr) {
+  const saved = tracks;
+  tracks = trackArr;
+  currentIdx = -1;
+  renderTracks(listEl);
+  tracks = saved;
 }
 
 // ── Playback ───────────────────────────────────────────────────────────────
@@ -311,8 +339,6 @@ function playTrack(idx) {
   isPlaying = true;
   prevBtn.disabled = idx <= 0;
   nextBtn.disabled = idx >= tracks.length - 1;
-
-  // update video tab if open
   updateVideoTab(t.id || t.track_id);
   renderTracks();
 }
@@ -353,15 +379,23 @@ function startTrackingProgress() {
 }
 
 function onPlayerStateChange(event) {
-  if (event.data === YT.PlayerState.PLAYING) { isPlaying = true; setPlayIcon(true); startTrackingProgress(); }
-  else if (event.data === YT.PlayerState.PAUSED) { isPlaying = false; setPlayIcon(false); clearInterval(progressInterval); }
-  else if (event.data === YT.PlayerState.ENDED) { clearInterval(progressInterval); playNext(); }
+  if (event.data === YT.PlayerState.PLAYING) {
+    isPlaying = true; setPlayIcon(true); startTrackingProgress();
+  } else if (event.data === YT.PlayerState.PAUSED) {
+    isPlaying = false; setPlayIcon(false); clearInterval(progressInterval);
+  } else if (event.data === YT.PlayerState.ENDED) {
+    clearInterval(progressInterval); playNext();
+  }
 }
-function onPlayerError(e) { if (currentIdx < tracks.length - 1) playTrack(currentIdx + 1); }
+
+function onPlayerError() {
+  if (currentIdx < tracks.length - 1) playTrack(currentIdx + 1);
+}
 
 progTrack.addEventListener("click", e => {
   if (!ytPlayer || currentIdx < 0) return;
-  const pct = Math.min(Math.max((e.clientX - progTrack.getBoundingClientRect().left) / progTrack.getBoundingClientRect().width, 0), 1);
+  const rect = progTrack.getBoundingClientRect();
+  const pct = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
   const dur = ytPlayer.getDuration();
   if (dur > 0) ytPlayer.seekTo(pct * dur, true);
 });
@@ -379,7 +413,7 @@ function updateVideoTab(videoId) {
   if (!videoId) return;
   placeholder.classList.add("hidden");
   frame.classList.remove("hidden");
-  frame.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0" allowfullscreen allow="autoplay"></iframe>`;
+  frame.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?rel=0" allowfullscreen allow="autoplay"></iframe>`;
 }
 
 videoBtn.addEventListener("click", () => {
@@ -430,9 +464,13 @@ async function renderFavorites() {
   const favs = window._favsCache;
   if (!favs.length) { el.innerHTML = ""; empty.classList.remove("hidden"); return; }
   empty.classList.add("hidden");
-  const mapped = favs.map(f => ({ id: f.track_id, title: f.title, artist: f.artist, thumbnail: f.thumbnail, duration_fmt: f.duration_fmt }));
-  const saved = tracks; tracks = mapped; currentIdx = -1;
-  renderTrackListInto(el, mapped);
+  const mapped = favs.map(f => ({
+    id: f.track_id, title: f.title, artist: f.artist,
+    thumbnail: f.thumbnail, duration_fmt: f.duration_fmt
+  }));
+  const saved = tracks;
+  tracks = mapped;
+  renderTracks(el);
   tracks = saved;
 }
 
@@ -440,12 +478,13 @@ async function renderFavorites() {
 createPlaylistBtn.addEventListener("click", async () => {
   const name = playlistNameInput.value.trim();
   if (!name) return;
-  await fetch("/playlists", { method: "POST", headers: authHeaders(), body: JSON.stringify({ name }) });
+  await fetch("/playlists", {
+    method: "POST", headers: authHeaders(), body: JSON.stringify({ name })
+  });
   playlistNameInput.value = "";
   renderPlaylists();
 });
 
-// Fix: space in playlist input shouldn't trigger spacebar shortcut
 playlistNameInput.addEventListener("keydown", e => e.stopPropagation());
 
 async function renderPlaylists() {
@@ -470,9 +509,11 @@ async function renderPlaylists() {
               <div class="track-name">${escHtml(t.title)}</div>
               <div class="track-artist">${escHtml(t.artist)}</div>
             </div>
-            <span class="track-dur">${t.duration_fmt || ''}</span>
+            <span class="track-dur">${t.duration_fmt || ""}</span>
             <button class="track-action" data-action="rm" data-plid="${pl.id}" data-tid="${t.track_id}" title="Remove">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
             </button>
           </div>
         `).join("")}
@@ -491,14 +532,19 @@ async function renderPlaylists() {
       if (e.target.closest("[data-action]")) return;
       const pl = playlists.find(p => p.id === row.dataset.plid);
       if (!pl) return;
-      tracks = pl.tracks.map(t => ({ id: t.track_id, title: t.title, artist: t.artist, thumbnail: t.thumbnail, duration_fmt: t.duration_fmt }));
+      tracks = pl.tracks.map(t => ({
+        id: t.track_id, title: t.title, artist: t.artist,
+        thumbnail: t.thumbnail, duration_fmt: t.duration_fmt
+      }));
       playTrack(+row.dataset.pidx);
     });
   });
   container.querySelectorAll("[data-action='rm']").forEach(btn => {
     btn.addEventListener("click", async e => {
       e.stopPropagation();
-      await fetch(`/playlists/${btn.dataset.plid}/tracks/${btn.dataset.tid}`, { method: "DELETE", headers: authHeaders() });
+      await fetch(`/playlists/${btn.dataset.plid}/tracks/${btn.dataset.tid}`, {
+        method: "DELETE", headers: authHeaders()
+      });
       renderPlaylists();
     });
   });
@@ -514,12 +560,15 @@ addToPlaylistBtn.addEventListener("click", async () => {
   ).join("");
   modalPlaylistList.querySelectorAll(".modal-pl-item").forEach(item => {
     item.addEventListener("click", async () => {
-      await fetch(`/playlists/${item.dataset.id}/tracks`, { method: "POST", headers: authHeaders(), body: JSON.stringify(currentTrackData) });
+      await fetch(`/playlists/${item.dataset.id}/tracks`, {
+        method: "POST", headers: authHeaders(), body: JSON.stringify(currentTrackData)
+      });
       playlistModal.classList.add("hidden");
     });
   });
   playlistModal.classList.remove("hidden");
 });
+
 modalClose.addEventListener("click", () => playlistModal.classList.add("hidden"));
 
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────
@@ -530,6 +579,3 @@ document.addEventListener("keydown", e => {
   if (e.code === "ArrowRight" && !nextBtn.disabled) playNext();
   if (e.code === "ArrowLeft" && !prevBtn.disabled) playTrack(currentIdx - 1);
 });
-
-// Load favs cache on start
-if (authToken) loadFavsCache();
