@@ -150,6 +150,13 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
     btn.classList.add("active");
     document.getElementById(`page-${btn.dataset.page}`).classList.add("active");
     closeSidebar();
+    if (btn.dataset.page === "home") {
+      // reset search and show trending
+      searchInput.value = "";
+      trackList.innerHTML = "";
+      statusMsg.classList.add("hidden");
+      trendingSection.classList.remove("hidden");
+    }
     if (btn.dataset.page === "favorites") renderFavorites();
     if (btn.dataset.page === "playlists") renderPlaylists();
   });
