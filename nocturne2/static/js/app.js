@@ -125,12 +125,20 @@ if (authToken && currentUser) enterApp();
 
 // ── Sidebar toggle ─────────────────────────────────────────────────────────
 menuBtn.addEventListener("click", () => {
-  sidebar.classList.toggle("open");
-  sidebarOverlay.classList.toggle("hidden");
+  const isOpen = sidebar.classList.contains("open");
+  if (isOpen) {
+    sidebar.classList.remove("open");
+    sidebarOverlay.classList.add("hidden");
+  } else {
+    sidebar.classList.remove("hidden"); // remove display:none first
+    sidebar.classList.add("open");
+    sidebarOverlay.classList.remove("hidden");
+  }
 });
 sidebarOverlay.addEventListener("click", closeSidebar);
 function closeSidebar() {
   sidebar.classList.remove("open");
+  sidebar.classList.add("hidden");
   sidebarOverlay.classList.add("hidden");
 }
 
