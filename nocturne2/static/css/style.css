@@ -1,3 +1,11 @@
+.sidebar {
+  /* existing styles... */
+  transform: translateX(-100%);
+}
+.sidebar.open {
+  transform: translateX(0);
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
