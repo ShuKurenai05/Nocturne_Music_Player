@@ -472,9 +472,21 @@ function togglePlay() {
 }
 
 function playNext() {
-  if (repeatOn) { ytPlayer.seekTo(0); ytPlayer.playVideo(); return; }
-  if (shuffleOn) { playTrack(Math.floor(Math.random() * tracks.length)); return; }
-  if (currentIdx < tracks.length - 1) playTrack(currentIdx + 1);
+  if (repeatOn) {
+    ytPlayer.seekTo(0);
+    ytPlayer.playVideo();
+    return;
+  }
+  if (shuffleOn) {
+    playTrack(Math.floor(Math.random() * tracks.length));
+    return;
+  }
+  // if in playlist mode, let YouTube handle it
+  if (ytPlayer.nextVideo) {
+    ytPlayer.nextVideo();
+  } else if (currentIdx < tracks.length - 1) {
+    playTrack(currentIdx + 1);
+  }
 }
 
 // ── Progress ───────────────────────────────────────────────────────────────
@@ -549,7 +561,13 @@ progTrack.addEventListener("click", e => {
 shuffleBtn.addEventListener("click", () => { shuffleOn = !shuffleOn; shuffleBtn.classList.toggle("active", shuffleOn); });
 repeatBtn.addEventListener("click", () => { repeatOn = !repeatOn; repeatBtn.classList.toggle("active", repeatOn); });
 playBtn.addEventListener("click", togglePlay);
-prevBtn.addEventListener("click", () => playTrack(currentIdx - 1));
+prevBtn.addEventListener("click", () => {
+  if (ytPlayer.previousVideo && ytPlayer.getPlaylistIndex() > 0) {
+    ytPlayer.previousVideo();
+  } else {
+    playTrack(currentIdx - 1);
+  }
+});
 nextBtn.addEventListener("click", () => playNext());
 
 // ── Video tab ──────────────────────────────────────────────────────────────
