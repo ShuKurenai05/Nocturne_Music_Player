@@ -117,17 +117,21 @@ def search():
 
 @app.route("/trending")
 def trending():
+    import datetime
+    # rotates every 6 hours so it feels fresh
+    seed = datetime.datetime.now().hour // 6
     queries = [
-        "Bollywood hits 2024 official audio",
-        "English pop 2024 official audio", 
-        "The Weeknd official audio",
-        "Arijit Singh official audio",
+        ["Bollywood hits 2024 official audio", "Arijit Singh latest 2024", "Hindi songs 2024"],
+        ["English pop hits 2024 official audio", "Taylor Swift official audio", "The Weeknd official audio"],
+        ["Drake official audio 2024", "hip hop hits 2024", "Travis Scott official audio"],
+        ["K-pop hits 2024", "Tamil hits 2024", "Malayalam songs 2024"],
     ]
+    selected = queries[seed % len(queries)]
     results = []
     seen = set()
     try:
         with yt_dlp.YoutubeDL(get_ydl_opts()) as ydl:
-            for q in queries:
+            for q in selected:
                 if len(results) >= 12:
                     break
                 info = ydl.extract_info(f"ytsearch5:{q}", download=False)
