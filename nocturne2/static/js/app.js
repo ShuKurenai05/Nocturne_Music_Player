@@ -12,6 +12,22 @@ let currentTrackData = null;
 let authToken = localStorage.getItem("nocturne_token");
 let currentUser = localStorage.getItem("nocturne_user");
 
+// Media Session API — tells Android this is a media app
+// enables background play and lock screen controls
+function updateMediaSession() {
+  if (!("mediaSession" in navigator)) return;
+  if (!currentTrackData) return;
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: currentTrackData.title,
+    artist: currentTrackData.artist,
+    artwork: [{ src: currentTrackData.thumbnail, sizes: "300x168", type: "image/jpeg" }]
+  });
+  navigator.mediaSession.setActionHandler("play", () => togglePlay());
+  navigator.mediaSession.setActionHandler("pause", () => togglePlay());
+  navigator.mediaSession.setActionHandler("previoustrack", () => playTrack(currentIdx - 1));
+  navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
+}
+
 // ── DOM ────────────────────────────────────────────────────────────────────
 const authScreen       = document.getElementById("authScreen");
 const appShell         = document.getElementById("appShell");
