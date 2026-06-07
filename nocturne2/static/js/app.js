@@ -425,23 +425,36 @@ function playTrack(idx) {
   if (idx < 0 || idx >= tracks.length || !ytPlayer) return;
   currentIdx = idx;
   currentTrackData = tracks[idx];
-  updateMediaSession(); 
   const t = currentTrackData;
 
   playerThumb.src = t.thumbnail || "";
   playerTitle.textContent = t.title;
   playerArtist.textContent = t.artist;
   playerBar.classList.remove("hidden");
-  // push player bar up above bottom nav
-  document.querySelector(".bottom-nav") && playerBar.classList.add("has-bnav");
   setPlayIcon(true);
   updateFavBtn();
+  updateMediaSession();
 
-  ytPlayer.loadVideoById(t.id || t.track_id);
+  // Build playlist of all remaining track IDs from current position
+  // YouTube handles transitions natively — works when backgrounded
+  const videoIds = tracks.slice(idx).map(t => t.id || t.track_id);
+
+  if (videoIds.length > 1) {
+    // load as a cued playlist so YouTube auto-advances
+    ytPlayer.loadPlaylist({
+      playlist: videoIds,
+      index: 0,
+      startSeconds: 0,
+    });
+  } else {
+    ytPlayer.loadVideoById(t.id || t.track_id);
+  }
+
   isPlaying = true;
   prevBtn.disabled = idx <= 0;
   nextBtn.disabled = idx >= tracks.length - 1;
   updateVideoTab(t.id || t.track_id);
+  syncExpandedPlayer && syncExpandedPlayer();
   renderTracks();
 }
 
