@@ -12,21 +12,11 @@ let currentTrackData = null;
 let authToken = localStorage.getItem("nocturne_token");
 let currentUser = localStorage.getItem("nocturne_user");
 
-// Silent audio trick — makes Android Media Session handlers reliable
-// without this, Android ignores previoustrack/nexttrack on notification bar
-const silentAudio = new Audio();
-silentAudio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
-silentAudio.loop = true;
-silentAudio.volume = 0.001; // nearly silent but not zero
-
 // Media Session API — tells Android this is a media app
 // enables background play and lock screen controls
 function updateMediaSession() {
   if (!("mediaSession" in navigator)) return;
   if (!currentTrackData) return;
-
-  // start silent audio to anchor media session to a real audio element
-  silentAudio.play().catch(() => {});
 
   navigator.mediaSession.metadata = new MediaMetadata({
     title: currentTrackData.title,
@@ -40,7 +30,6 @@ function updateMediaSession() {
 
   navigator.mediaSession.setActionHandler("play", () => {
     ytPlayer && ytPlayer.playVideo();
-    silentAudio.play().catch(() => {});
     isPlaying = true;
     setPlayIcon(true);
     navigator.mediaSession.playbackState = "playing";
@@ -48,7 +37,6 @@ function updateMediaSession() {
 
   navigator.mediaSession.setActionHandler("pause", () => {
     ytPlayer && ytPlayer.pauseVideo();
-    silentAudio.pause();
     isPlaying = false;
     setPlayIcon(false);
     navigator.mediaSession.playbackState = "paused";
