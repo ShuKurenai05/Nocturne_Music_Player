@@ -387,6 +387,7 @@ function playTrack(idx) {
   if (idx < 0 || idx >= tracks.length || !ytPlayer) return;
   currentIdx = idx;
   currentTrackData = tracks[idx];
+  updateMediaSession(); 
   const t = currentTrackData;
 
   playerThumb.src = t.thumbnail || "";
