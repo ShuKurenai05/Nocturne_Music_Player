@@ -17,17 +17,47 @@ let currentUser = localStorage.getItem("nocturne_user");
 function updateMediaSession() {
   if (!("mediaSession" in navigator)) return;
   if (!currentTrackData) return;
+
   navigator.mediaSession.metadata = new MediaMetadata({
     title: currentTrackData.title,
     artist: currentTrackData.artist,
-    artwork: [{ src: currentTrackData.thumbnail, sizes: "300x168", type: "image/jpeg" }]
+    album: "Nocturne",
+    artwork: [
+      { src: currentTrackData.thumbnail, sizes: "300x168", type: "image/jpeg" },
+      { src: currentTrackData.thumbnail, sizes: "512x512", type: "image/jpeg" }
+    ]
   });
-  navigator.mediaSession.setActionHandler("play", () => togglePlay());
-  navigator.mediaSession.setActionHandler("pause", () => togglePlay());
-  navigator.mediaSession.setActionHandler("previoustrack", () => playTrack(currentIdx - 1));
-  navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
-}
 
+  navigator.mediaSession.setActionHandler("play", () => {
+    ytPlayer && ytPlayer.playVideo();
+    isPlaying = true;
+    setPlayIcon(true);
+    navigator.mediaSession.playbackState = "playing";
+  });
+
+  navigator.mediaSession.setActionHandler("pause", () => {
+    ytPlayer && ytPlayer.pauseVideo();
+    isPlaying = false;
+    setPlayIcon(false);
+    navigator.mediaSession.playbackState = "paused";
+  });
+
+  navigator.mediaSession.setActionHandler("previoustrack", () => {
+    playTrack(currentIdx - 1);
+  });
+
+  navigator.mediaSession.setActionHandler("nexttrack", () => {
+    playNext();
+  });
+
+  navigator.mediaSession.setActionHandler("seekto", e => {
+    if (ytPlayer && e.seekTime) {
+      ytPlayer.seekTo(e.seekTime, true);
+    }
+  });
+
+  navigator.mediaSession.playbackState = "playing";
+}
 // ── DOM ────────────────────────────────────────────────────────────────────
 const authScreen       = document.getElementById("authScreen");
 const appShell         = document.getElementById("appShell");
