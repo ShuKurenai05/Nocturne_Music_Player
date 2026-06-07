@@ -680,16 +680,44 @@ function openPlaylistDetail(pl, playlists) {
   detail.classList.remove("hidden");
   detailName.textContent = pl.name;
 
-  // Render tracks inside detail
-  if (!pl.tracks.length) {
-    detailList.innerHTML = `<div class="empty-msg">No songs in this playlist yet.</div>`;
+  // inject search bar into detail header area
+  let searchBar = document.getElementById("plDetailSearch");
+  if (!searchBar) {
+    searchBar = document.createElement("div");
+    searchBar.id = "plDetailSearch";
+    searchBar.className = "pl-detail-search";
+    searchBar.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input type="text" id="plDetailSearchInput" placeholder="Search in playlist…" autocomplete="off" spellcheck="false"/>
+    `;
+    detail.insertBefore(searchBar, detailList);
   } else {
-    const mapped = pl.tracks.map(t => ({
-      id: t.track_id, title: t.title, artist: t.artist,
-      thumbnail: t.thumbnail, duration_fmt: t.duration_fmt
-    }));
-    detailList.innerHTML = mapped.map((t, i) => `
-      <div class="track" data-idx="${i}">
+    document.getElementById("plDetailSearchInput").value = "";
+  }
+
+  const mapped = pl.tracks.map(t => ({
+    id: t.track_id, title: t.title, artist: t.artist,
+    thumbnail: t.thumbnail, duration_fmt: t.duration_fmt
+  }));
+
+  function renderDetailTracks(filterQuery) {
+    const q = (filterQuery || "").toLowerCase().trim();
+    const filtered = q
+      ? mapped.filter(t =>
+          t.title.toLowerCase().includes(q) ||
+          t.artist.toLowerCase().includes(q)
+        )
+      : mapped;
+
+    if (!filtered.length) {
+      detailList.innerHTML = `<div class="empty-msg">${q ? "No matching songs." : "No songs in this playlist yet."}</div>`;
+      return;
+    }
+
+    detailList.innerHTML = filtered.map((t, i) => `
+      <div class="track" data-idx="${i}" data-realidx="${mapped.indexOf(t)}">
         <div class="track-num"><span>${i + 1}</span></div>
         <img class="track-thumb" src="${t.thumbnail}" alt="" loading="lazy"/>
         <div class="track-info">
@@ -697,7 +725,7 @@ function openPlaylistDetail(pl, playlists) {
           <div class="track-artist">${escHtml(t.artist)}</div>
         </div>
         <span class="track-dur">${t.duration_fmt || ""}</span>
-        <button class="track-action" data-action="rm" data-tid="${pl.tracks[i].track_id}" title="Remove">
+        <button class="track-action" data-action="rm" data-tid="${pl.tracks[mapped.indexOf(t)].track_id}" title="Remove">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
@@ -708,8 +736,9 @@ function openPlaylistDetail(pl, playlists) {
     detailList.querySelectorAll(".track").forEach(row => {
       row.addEventListener("click", e => {
         if (e.target.closest("[data-action]")) return;
+        // play from full mapped list starting at real index
         tracks = mapped;
-        playTrack(+row.dataset.idx);
+        playTrack(+row.dataset.realidx);
       });
     });
 
@@ -725,19 +754,29 @@ function openPlaylistDetail(pl, playlists) {
     });
   }
 
-  // Back
-  backBtn.addEventListener("click", () => {
-    detail.classList.add("hidden");
-    grid.classList.remove("hidden");
+  renderDetailTracks();
+
+  // live search
+  document.getElementById("plDetailSearchInput").addEventListener("input", e => {
+    renderDetailTracks(e.target.value);
+  });
+  // stop space from triggering play/pause
+  document.getElementById("plDetailSearchInput").addEventListener("keydown", e => {
+    e.stopPropagation();
   });
 
-  // Delete with confirm
-  deleteBtn.addEventListener("click", async () => {
+  backBtn.onclick = () => {
+    detail.classList.add("hidden");
+    grid.classList.remove("hidden");
+    document.getElementById("plDetailSearchInput").value = "";
+  };
+
+  deleteBtn.onclick = async () => {
     if (!confirm(`Delete playlist "${pl.name}"? This cannot be undone.`)) return;
     await fetch(`/playlists/${pl.id}`, { method: "DELETE", headers: authHeaders() });
     showToast("Playlist deleted.");
     renderPlaylists();
-  });
+  };
 }
 // ── Playlist modal ─────────────────────────────────────────────────────────
 async function openPlaylistModal(track) {
