@@ -660,6 +660,142 @@ async function openPlaylistModal(track) {
 addToPlaylistBtn.addEventListener("click", () => openPlaylistModal(currentTrackData));
 modalClose.addEventListener("click", () => playlistModal.classList.add("hidden"));
 
+// ── Expanded Player ───────────────────────────────────────────────────────
+const expandedPlayer = document.getElementById("expandedPlayer");
+const collapseBtn    = document.getElementById("collapseBtn");
+const expArt         = document.getElementById("expArt");
+const expTitle       = document.getElementById("expTitle");
+const expArtist      = document.getElementById("expArtist");
+const expFavBtn      = document.getElementById("expFavBtn");
+const expAddPlBtn    = document.getElementById("expAddPlBtn");
+const expProgTrack   = document.getElementById("expProgTrack");
+const expProgFill    = document.getElementById("expProgFill");
+const expProgThumb   = document.getElementById("expProgThumb");
+const expCurTime     = document.getElementById("expCurTime");
+const expDurTime     = document.getElementById("expDurTime");
+const expPlayBtn     = document.getElementById("expPlayBtn");
+const expPlayIcon    = document.getElementById("expPlayIcon");
+const expPrevBtn     = document.getElementById("expPrevBtn");
+const expNextBtn     = document.getElementById("expNextBtn");
+const expShuffleBtn  = document.getElementById("expShuffleBtn");
+const expRepeatBtn   = document.getElementById("expRepeatBtn");
+
+function openExpandedPlayer() {
+  expandedPlayer.classList.remove("hidden");
+  requestAnimationFrame(() => expandedPlayer.classList.add("open"));
+  syncExpandedPlayer();
+}
+
+function closeExpandedPlayer() {
+  expandedPlayer.classList.remove("open");
+  setTimeout(() => expandedPlayer.classList.add("hidden"), 350);
+}
+
+function syncExpandedPlayer() {
+  if (!currentTrackData) return;
+  expArt.src    = currentTrackData.thumbnail || "";
+  expTitle.textContent  = currentTrackData.title;
+  expArtist.textContent = currentTrackData.artist;
+  expPrevBtn.disabled = currentIdx <= 0;
+  expNextBtn.disabled = currentIdx >= tracks.length - 1;
+  const faved = isFaved(currentTrackData.id);
+  expFavBtn.classList.toggle("faved", faved);
+  expFavBtn.querySelector("svg").setAttribute("fill", faved ? "currentColor" : "none");
+  expShuffleBtn.classList.toggle("active", shuffleOn);
+  expRepeatBtn.classList.toggle("active", repeatOn);
+  setExpPlayIcon(isPlaying);
+}
+
+function setExpPlayIcon(playing) {
+  expPlayIcon.innerHTML = playing
+    ? `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`
+    : `<path d="M8 5v14l11-7z"/>`;
+}
+
+// Click player bar to expand
+playerBar.addEventListener("click", e => {
+  if (e.target.closest(".ctrl") || e.target.closest(".ctrl-sm") ||
+      e.target.closest(".prog-track")) return;
+  if (currentTrackData) openExpandedPlayer();
+});
+
+collapseBtn.addEventListener("click", closeExpandedPlayer);
+
+// Expanded controls mirror main controls
+expPlayBtn.addEventListener("click", () => { togglePlay(); setExpPlayIcon(isPlaying); });
+expPrevBtn.addEventListener("click", () => { playTrack(currentIdx - 1); });
+expNextBtn.addEventListener("click", () => { playNext(); });
+expShuffleBtn.addEventListener("click", () => {
+  shuffleOn = !shuffleOn;
+  shuffleBtn.classList.toggle("active", shuffleOn);
+  expShuffleBtn.classList.toggle("active", shuffleOn);
+});
+expRepeatBtn.addEventListener("click", () => {
+  repeatOn = !repeatOn;
+  repeatBtn.classList.toggle("active", repeatOn);
+  expRepeatBtn.classList.toggle("active", repeatOn);
+});
+expFavBtn.addEventListener("click", () => {
+  if (currentTrackData) { toggleFav(currentTrackData); syncExpandedPlayer(); }
+});
+expAddPlBtn.addEventListener("click", () => openPlaylistModal(currentTrackData));
+
+// Seek from expanded progress bar
+expProgTrack.addEventListener("click", e => {
+  if (!ytPlayer || currentIdx < 0) return;
+  const rect = expProgTrack.getBoundingClientRect();
+  const pct = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
+  const dur = ytPlayer.getDuration();
+  if (dur > 0) ytPlayer.seekTo(pct * dur, true);
+});
+
+// Keep expanded progress in sync
+const _origStartTracking = startTrackingProgress;
+startTrackingProgress = function() {
+  _origStartTracking();
+  // progress interval already updates mini bar — also update expanded
+};
+
+// Patch progress interval to also update expanded player
+const _origInterval = setInterval;
+// Instead, just patch the timeupdate inside onPlayerStateChange by overriding startTrackingProgress:
+// Re-declare it cleanly:
+startTrackingProgress = function() {
+  clearInterval(progressInterval);
+  progressInterval = setInterval(() => {
+    if (!ytPlayer || !isPlaying) return;
+    const cur = ytPlayer.getCurrentTime(), dur = ytPlayer.getDuration();
+    if (dur > 0) {
+      const pct = (cur / dur) * 100;
+      // mini bar
+      progFill.style.width = pct + "%";
+      progThumb.style.left = pct + "%";
+      curTimeEl.textContent = fmt(cur);
+      durTimeEl.textContent = fmt(dur);
+      // expanded bar
+      expProgFill.style.width = pct + "%";
+      expProgThumb.style.left = pct + "%";
+      expCurTime.textContent = fmt(cur);
+      expDurTime.textContent = fmt(dur);
+    }
+  }, 300);
+};
+
+// Sync expanded when track changes
+const _origPlayTrack = playTrack;
+playTrack = function(idx) {
+  _origPlayTrack(idx);
+  syncExpandedPlayer();
+};
+
+// Close expanded on back button
+window.addEventListener("popstate", () => {
+  if (expandedPlayer.classList.contains("open")) {
+    closeExpandedPlayer();
+    history.pushState(null, "", location.href);
+  }
+});
+
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────
 document.addEventListener("keydown", e => {
   const tag = e.target.tagName;
