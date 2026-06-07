@@ -119,6 +119,59 @@
 
   </main>
 
+  <!-- Expanded Player -->
+  <div id="expandedPlayer" class="expanded-player hidden">
+    <div class="exp-header">
+      <button id="collapseBtn" class="exp-collapse-btn">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+      </button>
+      <span class="exp-header-label">Now Playing</span>
+      <div style="width:36px"></div>
+    </div>
+    <div class="exp-art-wrap">
+      <img id="expArt" src="" alt="" class="exp-art"/>
+    </div>
+    <div class="exp-meta">
+      <div class="exp-title" id="expTitle">—</div>
+      <div class="exp-artist" id="expArtist">—</div>
+    </div>
+    <div class="exp-actions">
+      <button class="ctrl-sm fav-btn" id="expFavBtn" title="Favorite">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      </button>
+      <button class="ctrl-sm" id="expAddPlBtn" title="Add to playlist">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+    <div class="exp-progress">
+      <div class="prog-track" id="expProgTrack">
+        <div class="prog-fill" id="expProgFill"></div>
+        <div class="prog-thumb" id="expProgThumb"></div>
+      </div>
+      <div class="exp-times">
+        <span id="expCurTime">0:00</span>
+        <span id="expDurTime">0:00</span>
+      </div>
+    </div>
+    <div class="exp-controls">
+      <button class="ctrl" id="expShuffleBtn">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+      </button>
+      <button class="ctrl exp-prev" id="expPrevBtn" disabled>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+      </button>
+      <button class="ctrl play-pause exp-playpause" id="expPlayBtn">
+        <svg id="expPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="ctrl exp-next" id="expNextBtn" disabled>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="m6 18 8.5-6L6 6v12zm2-8.14 5.5 3.64L8 17.14V9.86zM16 6h2v12h-2z"/></svg>
+      </button>
+      <button class="ctrl" id="expRepeatBtn">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+      </button>
+    </div>
+  </div>
+
   <!-- Player bar -->
   <div id="playerBar" class="player-bar hidden">
     <div class="player-left">
