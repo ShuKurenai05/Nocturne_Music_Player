@@ -291,6 +291,8 @@ def assetlinks():
         "target": {
             "namespace": "android_app",
             "package_name": "com.nocturne.app",
-            "sha256_cert_fingerprints": []
+            "sha256_cert_fingerprints": [
+                "37:CE:A9:CA:62:8E:1C:6A:37:08:B3:28:5F:2F:AC:62:72:D4:98:89:58:EB:F1:CF:23:FD:B0:71:D3:0C:1C:EF"
+            ]
         }
     }])
