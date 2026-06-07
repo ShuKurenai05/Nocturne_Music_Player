@@ -12,11 +12,21 @@ let currentTrackData = null;
 let authToken = localStorage.getItem("nocturne_token");
 let currentUser = localStorage.getItem("nocturne_user");
 
+// Silent audio trick — makes Android Media Session handlers reliable
+// without this, Android ignores previoustrack/nexttrack on notification bar
+const silentAudio = new Audio();
+silentAudio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+silentAudio.loop = true;
+silentAudio.volume = 0.001; // nearly silent but not zero
+
 // Media Session API — tells Android this is a media app
 // enables background play and lock screen controls
 function updateMediaSession() {
   if (!("mediaSession" in navigator)) return;
   if (!currentTrackData) return;
+
+  // start silent audio to anchor media session to a real audio element
+  silentAudio.play().catch(() => {});
 
   navigator.mediaSession.metadata = new MediaMetadata({
     title: currentTrackData.title,
@@ -28,24 +38,22 @@ function updateMediaSession() {
     ]
   });
 
-  // Play / Pause
   navigator.mediaSession.setActionHandler("play", () => {
     ytPlayer && ytPlayer.playVideo();
+    silentAudio.play().catch(() => {});
     isPlaying = true;
     setPlayIcon(true);
-    setExpPlayIcon && setExpPlayIcon(true);
     navigator.mediaSession.playbackState = "playing";
   });
 
   navigator.mediaSession.setActionHandler("pause", () => {
     ytPlayer && ytPlayer.pauseVideo();
+    silentAudio.pause();
     isPlaying = false;
     setPlayIcon(false);
-    setExpPlayIcon && setExpPlayIcon(false);
     navigator.mediaSession.playbackState = "paused";
   });
 
-  // Previous / Next track
   navigator.mediaSession.setActionHandler("previoustrack", () => {
     if (currentIdx > 0) playTrack(currentIdx - 1);
   });
@@ -54,17 +62,14 @@ function updateMediaSession() {
     playNext();
   });
 
-  // Override seekbackward — make it go to previous track instead of jumping
   navigator.mediaSession.setActionHandler("seekbackward", () => {
     if (currentIdx > 0) playTrack(currentIdx - 1);
   });
 
-  // Override seekforward — make it go to next track instead of jumping
   navigator.mediaSession.setActionHandler("seekforward", () => {
     playNext();
   });
 
-  // Seek to position (for progress bar in notification)
   navigator.mediaSession.setActionHandler("seekto", e => {
     if (ytPlayer && e.seekTime !== undefined) {
       ytPlayer.seekTo(e.seekTime, true);
@@ -489,11 +494,19 @@ function startTrackingProgress() {
 
 function onPlayerStateChange(event) {
   if (event.data === YT.PlayerState.PLAYING) {
-    isPlaying = true; setPlayIcon(true); startTrackingProgress();
+    isPlaying = true;
+    setPlayIcon(true);
+    startTrackingProgress();
+    silentAudio.play().catch(() => {});  // keep session alive
   } else if (event.data === YT.PlayerState.PAUSED) {
-    isPlaying = false; setPlayIcon(false); clearInterval(progressInterval);
+    isPlaying = false;
+    setPlayIcon(false);
+    clearInterval(progressInterval);
+    silentAudio.pause();
   } else if (event.data === YT.PlayerState.ENDED) {
-    clearInterval(progressInterval); playNext();
+    clearInterval(progressInterval);
+    silentAudio.pause();
+    playNext();
   }
 }
 
