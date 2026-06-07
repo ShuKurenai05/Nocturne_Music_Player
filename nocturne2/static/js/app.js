@@ -26,12 +26,8 @@ const sidebar          = document.getElementById("sidebar");
 const sidebarOverlay   = document.getElementById("sidebarOverlay");
 const searchInput      = document.getElementById("searchInput");
 const searchBtn        = document.getElementById("searchBtn");
-const searchInput2     = document.getElementById("searchInput2");
-const searchBtn2       = document.getElementById("searchBtn2");
 const statusMsg        = document.getElementById("statusMsg");
-const statusMsg2       = document.getElementById("statusMsg2");
 const trackList        = document.getElementById("trackList");
-const trackList2       = document.getElementById("trackList2");
 const trendingList     = document.getElementById("trendingList");
 const trendingSection  = document.getElementById("trendingSection");
 const playerBar        = document.getElementById("playerBar");
@@ -58,6 +54,44 @@ const modalPlaylistList= document.getElementById("modalPlaylistList");
 const createPlaylistBtn= document.getElementById("createPlaylistBtn");
 const playlistNameInput= document.getElementById("playlistNameInput");
 const greetingHeader   = document.getElementById("greetingHeader");
+
+// ── Back button / refresh guards ───────────────────────────────────────────
+// Prevent accidental refresh
+window.addEventListener("beforeunload", e => {
+  e.preventDefault();
+  e.returnValue = "";
+});
+
+// Android back button — navigate pages instead of exiting
+let backPressCount = 0;
+window.addEventListener("popstate", () => {
+  const activePage = document.querySelector(".page.active");
+  if (activePage && activePage.id !== "page-home") {
+    navigateTo("home");
+    history.pushState(null, "", location.href);
+  } else {
+    backPressCount++;
+    if (backPressCount === 1) {
+      showToast("Press back again to exit");
+      setTimeout(() => { backPressCount = 0; }, 2000);
+      history.pushState(null, "", location.href);
+    }
+  }
+});
+history.pushState(null, "", location.href);
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  let t = document.getElementById("toast");
+  if (!t) {
+    t = document.createElement("div");
+    t.id = "toast";
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2000);
+}
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 let authMode = "login";
@@ -113,6 +147,7 @@ function enterApp() {
 }
 
 logoutBtn.addEventListener("click", () => {
+  if (!confirm("Log out of Nocturne?")) return;
   authToken = null; currentUser = null;
   localStorage.removeItem("nocturne_token");
   localStorage.removeItem("nocturne_user");
@@ -134,30 +169,51 @@ menuBtn.addEventListener("click", () => {
     sidebarOverlay.classList.remove("hidden");
   }
 });
-
 sidebarOverlay.addEventListener("click", closeSidebar);
-
 function closeSidebar() {
   sidebar.classList.remove("open");
   sidebarOverlay.classList.add("hidden");
 }
 
 // ── Navigation ─────────────────────────────────────────────────────────────
+function navigateTo(page) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".bnav-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+
+  const pageEl = document.getElementById(`page-${page}`);
+  if (pageEl) pageEl.classList.add("active");
+
+  document.querySelectorAll(`.bnav-btn[data-page="${page}"]`).forEach(b => b.classList.add("active"));
+  document.querySelectorAll(`.nav-btn[data-page="${page}"]`).forEach(b => b.classList.add("active"));
+
+  if (page === "home") {
+    searchInput.value = "";
+    trackList.innerHTML = "";
+    statusMsg.classList.add("hidden");
+    trendingSection.classList.remove("hidden");
+  }
+  if (page === "favorites") renderFavorites();
+  if (page === "playlists") renderPlaylists();
+  closeSidebar();
+}
+
+// Bottom nav
+document.querySelectorAll(".bnav-btn").forEach(btn => {
+  btn.addEventListener("click", () => navigateTo(btn.dataset.page));
+});
+
+// Sidebar nav
 document.querySelectorAll(".nav-btn").forEach(btn => {
+  btn.addEventListener("click", () => navigateTo(btn.dataset.page));
+});
+
+// Genre buttons
+document.querySelectorAll(".genre-btn").forEach(btn => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(`page-${btn.dataset.page}`).classList.add("active");
-    closeSidebar();
-    if (btn.dataset.page === "home") {
-      searchInput.value = "";
-      trackList.innerHTML = "";
-      statusMsg.classList.add("hidden");
-      trendingSection.classList.remove("hidden");
-    }
-    if (btn.dataset.page === "favorites") renderFavorites();
-    if (btn.dataset.page === "playlists") renderPlaylists();
+    navigateTo("home");
+    searchInput.value = btn.dataset.q;
+    doSearch(btn.dataset.q, trackList, statusMsg);
   });
 });
 
@@ -253,8 +309,6 @@ async function doSearch(q, listEl, statusEl) {
 
 searchBtn.addEventListener("click", () => doSearch(searchInput.value, trackList, statusMsg));
 searchInput.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(searchInput.value, trackList, statusMsg); });
-searchBtn2.addEventListener("click", () => doSearch(searchInput2.value, trackList2, statusMsg2));
-searchInput2.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(searchInput2.value, trackList2, statusMsg2); });
 
 document.querySelectorAll(".hint-tag").forEach(tag => {
   tag.addEventListener("click", () => {
@@ -263,19 +317,7 @@ document.querySelectorAll(".hint-tag").forEach(tag => {
   });
 });
 
-document.querySelectorAll(".genre-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-    document.querySelector('[data-page="home"]').classList.add("active");
-    document.getElementById("page-home").classList.add("active");
-    closeSidebar();
-    searchInput.value = btn.dataset.q;
-    doSearch(btn.dataset.q, trackList, statusMsg);
-  });
-});
-
-// ── Render track list ──────────────────────────────────────────────────────
+// ── Render tracks ──────────────────────────────────────────────────────────
 function renderTracks(listEl) {
   listEl = listEl || trackList;
   listEl.innerHTML = tracks.map((t, i) => `
@@ -296,6 +338,11 @@ function renderTracks(listEl) {
           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
         </svg>
       </button>
+      <button class="track-action" data-action="addpl" data-idx="${i}" title="Add to playlist">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
     </div>
   `).join("");
 
@@ -311,14 +358,12 @@ function renderTracks(listEl) {
       toggleFav(tracks[+btn.dataset.idx]);
     });
   });
-}
-
-function renderTrackListInto(listEl, trackArr) {
-  const saved = tracks;
-  tracks = trackArr;
-  currentIdx = -1;
-  renderTracks(listEl);
-  tracks = saved;
+  listEl.querySelectorAll("[data-action='addpl']").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      openPlaylistModal(tracks[+btn.dataset.idx]);
+    });
+  });
 }
 
 // ── Playback ───────────────────────────────────────────────────────────────
@@ -332,6 +377,8 @@ function playTrack(idx) {
   playerTitle.textContent = t.title;
   playerArtist.textContent = t.artist;
   playerBar.classList.remove("hidden");
+  // push player bar up above bottom nav
+  document.querySelector(".bottom-nav") && playerBar.classList.add("has-bnav");
   setPlayIcon(true);
   updateFavBtn();
 
@@ -416,12 +463,7 @@ function updateVideoTab(videoId) {
   frame.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?rel=0" allowfullscreen allow="autoplay"></iframe>`;
 }
 
-videoBtn.addEventListener("click", () => {
-  document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  document.querySelector('[data-page="video"]').classList.add("active");
-  document.getElementById("page-video").classList.add("active");
-});
+videoBtn.addEventListener("click", () => navigateTo("video"));
 
 // ── Favorites ──────────────────────────────────────────────────────────────
 window._favsCache = [];
@@ -464,14 +506,58 @@ async function renderFavorites() {
   const favs = window._favsCache;
   if (!favs.length) { el.innerHTML = ""; empty.classList.remove("hidden"); return; }
   empty.classList.add("hidden");
+
+  // map to standard track shape and play from favorites
   const mapped = favs.map(f => ({
-    id: f.track_id, title: f.title, artist: f.artist,
-    thumbnail: f.thumbnail, duration_fmt: f.duration_fmt
+    id: f.track_id,
+    title: f.title,
+    artist: f.artist,
+    thumbnail: f.thumbnail,
+    duration_fmt: f.duration_fmt
   }));
-  const saved = tracks;
+
+  // temporarily set global tracks so playTrack works
+  const savedTracks = tracks;
   tracks = mapped;
-  renderTracks(el);
-  tracks = saved;
+
+  el.innerHTML = mapped.map((t, i) => `
+    <div class="track" data-idx="${i}">
+      <div class="track-num"><span>${i + 1}</span></div>
+      <img class="track-thumb" src="${t.thumbnail}" alt="" loading="lazy"/>
+      <div class="track-info">
+        <div class="track-name">${escHtml(t.title)}</div>
+        <div class="track-artist">${escHtml(t.artist)}</div>
+      </div>
+      <span class="track-dur">${t.duration_fmt || ""}</span>
+      <button class="track-action faved" data-action="unfav" data-idx="${i}" title="Remove from favorites">
+        <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>
+      </button>
+    </div>
+  `).join("");
+
+  el.querySelectorAll(".track").forEach(row => {
+    row.addEventListener("click", e => {
+      if (e.target.closest("[data-action]")) return;
+      // keep tracks as favorites list while playing
+      tracks = mapped;
+      playTrack(+row.dataset.idx);
+    });
+  });
+
+  el.querySelectorAll("[data-action='unfav']").forEach(btn => {
+    btn.addEventListener("click", async e => {
+      e.stopPropagation();
+      const t = mapped[+btn.dataset.idx];
+      await fetch(`/favs/${t.id}`, { method: "DELETE", headers: authHeaders() });
+      window._favsCache = window._favsCache.filter(f => f.track_id !== t.id);
+      renderFavorites();
+    });
+  });
+
+  // restore tracks only if we're not currently playing from favorites
+  if (currentIdx < 0) tracks = savedTracks;
 }
 
 // ── Playlists ──────────────────────────────────────────────────────────────
@@ -550,25 +636,28 @@ async function renderPlaylists() {
   });
 }
 
-addToPlaylistBtn.addEventListener("click", async () => {
-  if (!currentTrackData) return;
+// ── Playlist modal ─────────────────────────────────────────────────────────
+async function openPlaylistModal(track) {
+  if (!track) return;
   const res = await fetch("/playlists", { headers: authHeaders() });
   const playlists = await res.json();
-  if (!playlists.length) { alert("Create a playlist first."); return; }
+  if (!playlists.length) { showToast("Create a playlist first."); return; }
   modalPlaylistList.innerHTML = playlists.map(pl =>
     `<div class="modal-pl-item" data-id="${pl.id}">${escHtml(pl.name)}</div>`
   ).join("");
   modalPlaylistList.querySelectorAll(".modal-pl-item").forEach(item => {
     item.addEventListener("click", async () => {
       await fetch(`/playlists/${item.dataset.id}/tracks`, {
-        method: "POST", headers: authHeaders(), body: JSON.stringify(currentTrackData)
+        method: "POST", headers: authHeaders(), body: JSON.stringify(track)
       });
       playlistModal.classList.add("hidden");
+      showToast("Added to playlist!");
     });
   });
   playlistModal.classList.remove("hidden");
-});
+}
 
+addToPlaylistBtn.addEventListener("click", () => openPlaylistModal(currentTrackData));
 modalClose.addEventListener("click", () => playlistModal.classList.add("hidden"));
 
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────
