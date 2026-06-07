@@ -43,20 +43,28 @@ function updateMediaSession() {
   });
 
   navigator.mediaSession.setActionHandler("previoustrack", () => {
-    if (currentIdx > 0) playTrack(currentIdx - 1);
-  });
+  if (ytPlayer.previousVideo && ytPlayer.getPlaylistIndex() > 0) {
+    ytPlayer.previousVideo();
+  } else if (currentIdx > 0) {
+    playTrack(currentIdx - 1);
+  }
+});
 
-  navigator.mediaSession.setActionHandler("nexttrack", () => {
-    playNext();
-  });
+navigator.mediaSession.setActionHandler("nexttrack", () => {
+  playNext();
+});
 
-  navigator.mediaSession.setActionHandler("seekbackward", () => {
-    if (currentIdx > 0) playTrack(currentIdx - 1);
-  });
+navigator.mediaSession.setActionHandler("seekbackward", () => {
+  if (ytPlayer.previousVideo && ytPlayer.getPlaylistIndex() > 0) {
+    ytPlayer.previousVideo();
+  } else if (currentIdx > 0) {
+    playTrack(currentIdx - 1);
+  }
+});
 
-  navigator.mediaSession.setActionHandler("seekforward", () => {
-    playNext();
-  });
+navigator.mediaSession.setActionHandler("seekforward", () => {
+  playNext();
+});
 
   navigator.mediaSession.setActionHandler("seekto", e => {
     if (ytPlayer && e.seekTime !== undefined) {
