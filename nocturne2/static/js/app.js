@@ -485,15 +485,12 @@ function onPlayerStateChange(event) {
     isPlaying = true;
     setPlayIcon(true);
     startTrackingProgress();
-    silentAudio.play().catch(() => {});  // keep session alive
   } else if (event.data === YT.PlayerState.PAUSED) {
     isPlaying = false;
     setPlayIcon(false);
     clearInterval(progressInterval);
-    silentAudio.pause();
   } else if (event.data === YT.PlayerState.ENDED) {
     clearInterval(progressInterval);
-    silentAudio.pause();
     playNext();
   }
 }
