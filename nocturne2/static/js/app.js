@@ -578,64 +578,167 @@ async function renderPlaylists() {
   const playlists = await res.json();
   const container = document.getElementById("playlistsContainer");
   const empty = document.getElementById("playlistEmpty");
-  if (!playlists.length) { container.innerHTML = ""; empty.classList.remove("hidden"); return; }
+
+  if (!playlists.length) {
+    container.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
   empty.classList.add("hidden");
-  container.innerHTML = playlists.map(pl => `
-    <div class="playlist-group">
-      <div class="playlist-group-header">
-        <span class="playlist-group-name">🎵 ${escHtml(pl.name)} (${pl.tracks.length})</span>
-        <button class="playlist-delete-btn" data-id="${pl.id}">Delete</button>
-      </div>
-      <div class="track-list">
-        ${pl.tracks.map((t, i) => `
-          <div class="track" data-plid="${pl.id}" data-pidx="${i}" data-tid="${t.track_id}">
-            <div class="track-num"><span>${i + 1}</span></div>
-            <img class="track-thumb" src="${t.thumbnail}" alt="" loading="lazy"/>
-            <div class="track-info">
-              <div class="track-name">${escHtml(t.title)}</div>
-              <div class="track-artist">${escHtml(t.artist)}</div>
-            </div>
-            <span class="track-dur">${t.duration_fmt || ""}</span>
-            <button class="track-action" data-action="rm" data-plid="${pl.id}" data-tid="${t.track_id}" title="Remove">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
+
+  // Grid of playlist cards
+  container.innerHTML = `
+    <div class="playlist-grid" id="playlistGrid">
+      ${playlists.map(pl => `
+        <div class="pl-card" data-id="${pl.id}">
+          <div class="pl-card-art">
+            ${pl.tracks.slice(0, 4).map(t =>
+              `<img src="${t.thumbnail}" alt="" loading="lazy"/>`
+            ).join("")}
+            ${pl.tracks.length === 0
+              ? `<div class="pl-card-empty-art">🎵</div>`
+              : ""}
+          </div>
+          <div class="pl-card-info">
+            <div class="pl-card-name">${escHtml(pl.name)}</div>
+            <div class="pl-card-count">${pl.tracks.length} song${pl.tracks.length !== 1 ? "s" : ""}</div>
+          </div>
+          <div class="pl-card-btns">
+            <button class="pl-play-btn" data-id="${pl.id}" data-shuffle="0" title="Play in order">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              Play
+            </button>
+            <button class="pl-play-btn shuffle" data-id="${pl.id}" data-shuffle="1" title="Shuffle play">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+              Shuffle
             </button>
           </div>
-        `).join("")}
-      </div>
+        </div>
+      `).join("")}
     </div>
-  `).join("");
 
-  container.querySelectorAll(".playlist-delete-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      await fetch(`/playlists/${btn.dataset.id}`, { method: "DELETE", headers: authHeaders() });
-      renderPlaylists();
+    <!-- Expanded playlist view (hidden by default) -->
+    <div class="pl-detail hidden" id="plDetail">
+      <div class="pl-detail-header">
+        <button class="pl-back-btn" id="plBackBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+          Back
+        </button>
+        <div class="pl-detail-name" id="plDetailName"></div>
+        <button class="pl-delete-btn" id="plDeleteBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+      </div>
+      <div id="plDetailList" class="track-list"></div>
+    </div>
+  `;
+
+  // Card click → open detail
+  container.querySelectorAll(".pl-card").forEach(card => {
+    card.addEventListener("click", e => {
+      if (e.target.closest(".pl-play-btn")) return;
+      const pl = playlists.find(p => p.id === card.dataset.id);
+      if (!pl) return;
+      openPlaylistDetail(pl, playlists);
     });
   });
-  container.querySelectorAll(".track").forEach(row => {
-    row.addEventListener("click", e => {
-      if (e.target.closest("[data-action]")) return;
-      const pl = playlists.find(p => p.id === row.dataset.plid);
-      if (!pl) return;
+
+  // Play / Shuffle buttons on card
+  container.querySelectorAll(".pl-play-btn").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const pl = playlists.find(p => p.id === btn.dataset.id);
+      if (!pl || !pl.tracks.length) { showToast("Playlist is empty."); return; }
       tracks = pl.tracks.map(t => ({
         id: t.track_id, title: t.title, artist: t.artist,
         thumbnail: t.thumbnail, duration_fmt: t.duration_fmt
       }));
-      playTrack(+row.dataset.pidx);
-    });
-  });
-  container.querySelectorAll("[data-action='rm']").forEach(btn => {
-    btn.addEventListener("click", async e => {
-      e.stopPropagation();
-      await fetch(`/playlists/${btn.dataset.plid}/tracks/${btn.dataset.tid}`, {
-        method: "DELETE", headers: authHeaders()
-      });
-      renderPlaylists();
+      if (btn.dataset.shuffle === "1") {
+        shuffleOn = true;
+        shuffleBtn.classList.add("active");
+        expShuffleBtn && expShuffleBtn.classList.add("active");
+        playTrack(Math.floor(Math.random() * tracks.length));
+      } else {
+        shuffleOn = false;
+        shuffleBtn.classList.remove("active");
+        expShuffleBtn && expShuffleBtn.classList.remove("active");
+        playTrack(0);
+      }
     });
   });
 }
 
+function openPlaylistDetail(pl, playlists) {
+  const grid = document.getElementById("playlistGrid");
+  const detail = document.getElementById("plDetail");
+  const detailName = document.getElementById("plDetailName");
+  const detailList = document.getElementById("plDetailList");
+  const backBtn = document.getElementById("plBackBtn");
+  const deleteBtn = document.getElementById("plDeleteBtn");
+
+  grid.classList.add("hidden");
+  detail.classList.remove("hidden");
+  detailName.textContent = pl.name;
+
+  // Render tracks inside detail
+  if (!pl.tracks.length) {
+    detailList.innerHTML = `<div class="empty-msg">No songs in this playlist yet.</div>`;
+  } else {
+    const mapped = pl.tracks.map(t => ({
+      id: t.track_id, title: t.title, artist: t.artist,
+      thumbnail: t.thumbnail, duration_fmt: t.duration_fmt
+    }));
+    detailList.innerHTML = mapped.map((t, i) => `
+      <div class="track" data-idx="${i}">
+        <div class="track-num"><span>${i + 1}</span></div>
+        <img class="track-thumb" src="${t.thumbnail}" alt="" loading="lazy"/>
+        <div class="track-info">
+          <div class="track-name">${escHtml(t.title)}</div>
+          <div class="track-artist">${escHtml(t.artist)}</div>
+        </div>
+        <span class="track-dur">${t.duration_fmt || ""}</span>
+        <button class="track-action" data-action="rm" data-tid="${pl.tracks[i].track_id}" title="Remove">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    `).join("");
+
+    detailList.querySelectorAll(".track").forEach(row => {
+      row.addEventListener("click", e => {
+        if (e.target.closest("[data-action]")) return;
+        tracks = mapped;
+        playTrack(+row.dataset.idx);
+      });
+    });
+
+    detailList.querySelectorAll("[data-action='rm']").forEach(btn => {
+      btn.addEventListener("click", async e => {
+        e.stopPropagation();
+        await fetch(`/playlists/${pl.id}/tracks/${btn.dataset.tid}`, {
+          method: "DELETE", headers: authHeaders()
+        });
+        showToast("Removed from playlist.");
+        renderPlaylists();
+      });
+    });
+  }
+
+  // Back
+  backBtn.addEventListener("click", () => {
+    detail.classList.add("hidden");
+    grid.classList.remove("hidden");
+  });
+
+  // Delete with confirm
+  deleteBtn.addEventListener("click", async () => {
+    if (!confirm(`Delete playlist "${pl.name}"? This cannot be undone.`)) return;
+    await fetch(`/playlists/${pl.id}`, { method: "DELETE", headers: authHeaders() });
+    showToast("Playlist deleted.");
+    renderPlaylists();
+  });
+}
 // ── Playlist modal ─────────────────────────────────────────────────────────
 async function openPlaylistModal(track) {
   if (!track) return;
