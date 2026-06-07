@@ -28,10 +28,12 @@ function updateMediaSession() {
     ]
   });
 
+  // Play / Pause
   navigator.mediaSession.setActionHandler("play", () => {
     ytPlayer && ytPlayer.playVideo();
     isPlaying = true;
     setPlayIcon(true);
+    setExpPlayIcon && setExpPlayIcon(true);
     navigator.mediaSession.playbackState = "playing";
   });
 
@@ -39,19 +41,32 @@ function updateMediaSession() {
     ytPlayer && ytPlayer.pauseVideo();
     isPlaying = false;
     setPlayIcon(false);
+    setExpPlayIcon && setExpPlayIcon(false);
     navigator.mediaSession.playbackState = "paused";
   });
 
+  // Previous / Next track
   navigator.mediaSession.setActionHandler("previoustrack", () => {
-    playTrack(currentIdx - 1);
+    if (currentIdx > 0) playTrack(currentIdx - 1);
   });
 
   navigator.mediaSession.setActionHandler("nexttrack", () => {
     playNext();
   });
 
+  // Override seekbackward — make it go to previous track instead of jumping
+  navigator.mediaSession.setActionHandler("seekbackward", () => {
+    if (currentIdx > 0) playTrack(currentIdx - 1);
+  });
+
+  // Override seekforward — make it go to next track instead of jumping
+  navigator.mediaSession.setActionHandler("seekforward", () => {
+    playNext();
+  });
+
+  // Seek to position (for progress bar in notification)
   navigator.mediaSession.setActionHandler("seekto", e => {
-    if (ytPlayer && e.seekTime) {
+    if (ytPlayer && e.seekTime !== undefined) {
       ytPlayer.seekTo(e.seekTime, true);
     }
   });
