@@ -498,12 +498,38 @@ function onPlayerStateChange(event) {
     isPlaying = true;
     setPlayIcon(true);
     startTrackingProgress();
+
+    // sync track info when YouTube auto-advances to next song
+    if (ytPlayer.getPlaylistIndex && ytPlayer.getPlaylistIndex() !== null) {
+      const plIdx = ytPlayer.getPlaylistIndex();
+      if (plIdx >= 0 && (currentIdx + plIdx) < tracks.length) {
+        const realIdx = currentIdx + plIdx;
+        // only update metadata if YouTube moved to a different track
+        if (plIdx > 0) {
+          currentIdx = realIdx;
+          currentTrackData = tracks[currentIdx];
+          playerThumb.src = currentTrackData.thumbnail || "";
+          playerTitle.textContent = currentTrackData.title;
+          playerArtist.textContent = currentTrackData.artist;
+          prevBtn.disabled = currentIdx <= 0;
+          nextBtn.disabled = currentIdx >= tracks.length - 1;
+          updateFavBtn();
+          updateMediaSession();
+          updateVideoTab(currentTrackData.id);
+          syncExpandedPlayer && syncExpandedPlayer();
+          renderTracks();
+        }
+      }
+    }
+
   } else if (event.data === YT.PlayerState.PAUSED) {
     isPlaying = false;
     setPlayIcon(false);
     clearInterval(progressInterval);
+
   } else if (event.data === YT.PlayerState.ENDED) {
     clearInterval(progressInterval);
+    // only fires for single video — playlist mode handles this natively
     playNext();
   }
 }
