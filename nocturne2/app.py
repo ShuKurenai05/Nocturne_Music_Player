@@ -255,3 +255,40 @@ def health():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+
+
+@app.route("/manifest.json")
+def manifest():
+    return jsonify({
+        "name": "Nocturne",
+        "short_name": "Nocturne",
+        "description": "Every song. Any time.",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#080810",
+        "theme_color": "#080810",
+        "orientation": "portrait",
+        "icons": [
+            {
+                "src": "/static/icons/icon-192.png",
+                "sizes": "192x192",
+                "type": "image/png"
+            },
+            {
+                "src": "/static/icons/icon-512.png",
+                "sizes": "512x512",
+                "type": "image/png"
+            }
+        ]
+    })
+
+@app.route("/.well-known/assetlinks.json")
+def assetlinks():
+    return jsonify([{
+        "relation": ["delegate_permission/common.handle_all_urls"],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "com.nocturne.app",
+            "sha256_cert_fingerprints": []
+        }
+    }])
