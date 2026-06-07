@@ -435,3 +435,29 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
 @media (max-width: 600px) {
   .playlist-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
 }
+
+/* ── Playlist detail search ── */
+.pl-detail-search {
+  display: flex;
+  align-items: center;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 0 12px;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s;
+}
+.pl-detail-search:focus-within { border-color: var(--accent); }
+.pl-detail-search svg { width: 15px; height: 15px; color: var(--text3); flex-shrink: 0; }
+.pl-detail-search input {
+  flex: 1;
+  height: 40px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  outline: none;
+  padding: 0 10px;
+}
+.pl-detail-search input::placeholder { color: var(--text3); }
