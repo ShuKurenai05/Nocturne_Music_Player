@@ -270,14 +270,16 @@ def manifest():
         "orientation": "portrait",
         "icons": [
             {
-                "src": "/static/icons/icon-192.png",
+                "src": "https://nocturne-music-player.onrender.com/static/icons/icon-192.png",
                 "sizes": "192x192",
-                "type": "image/png"
+                "type": "image/png",
+                "purpose": "any maskable"
             },
             {
-                "src": "/static/icons/icon-512.png",
+                "src": "https://nocturne-music-player.onrender.com/static/icons/icon-512.png",
                 "sizes": "512x512",
-                "type": "image/png"
+                "type": "image/png",
+                "purpose": "any maskable"
             }
         ]
     })
