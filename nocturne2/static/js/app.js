@@ -956,16 +956,25 @@ startTrackingProgress = function() {
     const cur = ytPlayer.getCurrentTime(), dur = ytPlayer.getDuration();
     if (dur > 0) {
       const pct = (cur / dur) * 100;
-      // mini bar
       progFill.style.width = pct + "%";
       progThumb.style.left = pct + "%";
       curTimeEl.textContent = fmt(cur);
       durTimeEl.textContent = fmt(dur);
-      // expanded bar
       expProgFill.style.width = pct + "%";
       expProgThumb.style.left = pct + "%";
       expCurTime.textContent = fmt(cur);
       expDurTime.textContent = fmt(dur);
+
+      // keep Android media session position updated
+      if ("mediaSession" in navigator && dur > 0) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: dur,
+            playbackRate: 1,
+            position: cur
+          });
+        } catch(e) {}
+      }
     }
   }, 300);
 };
