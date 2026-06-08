@@ -5,75 +5,13 @@ let tracks = [];
 let currentIdx = -1;
 let isPlaying = false;
 let shuffleOn = false;
-let repeatOn = false;
+let repeatMode = 0; // 0 = off, 1 = repeat all, 2 = repeat one
 let ytPlayer = null;
 let progressInterval = null;
 let currentTrackData = null;
 let authToken = localStorage.getItem("nocturne_token");
 let currentUser = localStorage.getItem("nocturne_user");
 
-// Media Session API — tells Android this is a media app
-// enables background play and lock screen controls
-function updateMediaSession() {
-  if (!("mediaSession" in navigator)) return;
-  if (!currentTrackData) return;
-
-  navigator.mediaSession.metadata = new MediaMetadata({
-    title: currentTrackData.title,
-    artist: currentTrackData.artist,
-    album: "Nocturne",
-    artwork: [
-      { src: currentTrackData.thumbnail, sizes: "300x168", type: "image/jpeg" },
-      { src: currentTrackData.thumbnail, sizes: "512x512", type: "image/jpeg" }
-    ]
-  });
-
-  navigator.mediaSession.setActionHandler("play", () => {
-    ytPlayer && ytPlayer.playVideo();
-    isPlaying = true;
-    setPlayIcon(true);
-    navigator.mediaSession.playbackState = "playing";
-  });
-
-  navigator.mediaSession.setActionHandler("pause", () => {
-    ytPlayer && ytPlayer.pauseVideo();
-    isPlaying = false;
-    setPlayIcon(false);
-    navigator.mediaSession.playbackState = "paused";
-  });
-
-  navigator.mediaSession.setActionHandler("previoustrack", () => {
-  if (ytPlayer.previousVideo && ytPlayer.getPlaylistIndex() > 0) {
-    ytPlayer.previousVideo();
-  } else if (currentIdx > 0) {
-    playTrack(currentIdx - 1);
-  }
-});
-
-navigator.mediaSession.setActionHandler("nexttrack", () => {
-  playNext();
-});
-
-navigator.mediaSession.setActionHandler("seekbackward", () => {
-  if (ytPlayer.previousVideo && ytPlayer.getPlaylistIndex() > 0) {
-    ytPlayer.previousVideo();
-  } else if (currentIdx > 0) {
-    playTrack(currentIdx - 1);
-  }
-});
-
-navigator.mediaSession.setActionHandler("seekforward", () => {
-  playNext();
-});
-
-  navigator.mediaSession.setActionHandler("seekto", e => {
-    if (ytPlayer && e.seekTime !== undefined) {
-      ytPlayer.seekTo(e.seekTime, true);
-    }
-  });
-
-  navigator.mediaSession.playbackState = "playing";
-}
 // ── DOM ────────────────────────────────────────────────────────────────────
 const authScreen       = document.getElementById("authScreen");
 const appShell         = document.getElementById("appShell");
@@ -118,15 +56,18 @@ const playlistNameInput= document.getElementById("playlistNameInput");
 const greetingHeader   = document.getElementById("greetingHeader");
 
 // ── Back button / refresh guards ───────────────────────────────────────────
-// Prevent accidental refresh
 window.addEventListener("beforeunload", e => {
   e.preventDefault();
   e.returnValue = "";
 });
 
-// Android back button — navigate pages instead of exiting
 let backPressCount = 0;
 window.addEventListener("popstate", () => {
+  if (typeof expandedPlayer !== "undefined" && expandedPlayer.classList.contains("open")) {
+    closeExpandedPlayer();
+    history.pushState(null, "", location.href);
+    return;
+  }
   const activePage = document.querySelector(".page.active");
   if (activePage && activePage.id !== "page-home") {
     navigateTo("home");
@@ -232,6 +173,7 @@ menuBtn.addEventListener("click", () => {
   }
 });
 sidebarOverlay.addEventListener("click", closeSidebar);
+
 function closeSidebar() {
   sidebar.classList.remove("open");
   sidebarOverlay.classList.add("hidden");
@@ -242,13 +184,10 @@ function navigateTo(page) {
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.querySelectorAll(".bnav-btn").forEach(b => b.classList.remove("active"));
   document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
-
   const pageEl = document.getElementById(`page-${page}`);
   if (pageEl) pageEl.classList.add("active");
-
   document.querySelectorAll(`.bnav-btn[data-page="${page}"]`).forEach(b => b.classList.add("active"));
   document.querySelectorAll(`.nav-btn[data-page="${page}"]`).forEach(b => b.classList.add("active"));
-
   if (page === "home") {
     searchInput.value = "";
     trackList.innerHTML = "";
@@ -260,17 +199,12 @@ function navigateTo(page) {
   closeSidebar();
 }
 
-// Bottom nav
 document.querySelectorAll(".bnav-btn").forEach(btn => {
   btn.addEventListener("click", () => navigateTo(btn.dataset.page));
 });
-
-// Sidebar nav
 document.querySelectorAll(".nav-btn").forEach(btn => {
   btn.addEventListener("click", () => navigateTo(btn.dataset.page));
 });
-
-// Genre buttons
 document.querySelectorAll(".genre-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     navigateTo("home");
@@ -316,6 +250,29 @@ function isFaved(id) {
   return window._favsCache && window._favsCache.some(t => t.track_id === id);
 }
 
+// ── Repeat button ──────────────────────────────────────────────────────────
+function updateRepeatBtn() {
+  [repeatBtn, document.getElementById("expRepeatBtn")].forEach(btn => {
+    if (!btn) return;
+    btn.classList.toggle("active", repeatMode > 0);
+    if (repeatMode === 0) {
+      btn.title = "Repeat off";
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>`;
+    } else if (repeatMode === 1) {
+      btn.title = "Repeat all";
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>`;
+    } else {
+      btn.title = "Repeat one";
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/><text x="12" y="13.5" text-anchor="middle" font-size="7" font-weight="bold" fill="currentColor" font-family="sans-serif">1</text></svg>`;
+    }
+  });
+}
+
+repeatBtn.addEventListener("click", () => {
+  repeatMode = (repeatMode + 1) % 3;
+  updateRepeatBtn();
+});
+
 // ── Trending ───────────────────────────────────────────────────────────────
 async function loadTrending() {
   try {
@@ -341,7 +298,6 @@ function renderTrendingGrid(trackArr) {
       <div class="trend-artist">${escHtml(t.artist)}</div>
     </div>
   `).join("");
-
   trendingList.querySelectorAll(".trend-card").forEach(card => {
     card.addEventListener("click", () => {
       tracks = window._trendingTracks;
@@ -357,7 +313,6 @@ async function doSearch(q, listEl, statusEl) {
   setStatus(statusEl, "Searching…", "loading");
   listEl.innerHTML = "";
   trendingSection.classList.add("hidden");
-
   try {
     const res = await fetch(`/search?q=${encodeURIComponent(query)}`);
     if (!res.ok) throw new Error();
@@ -443,17 +398,9 @@ function playTrack(idx) {
   updateFavBtn();
   updateMediaSession();
 
-  // Build playlist of all remaining track IDs from current position
-  // YouTube handles transitions natively — works when backgrounded
   const videoIds = tracks.slice(idx).map(t => t.id || t.track_id);
-
   if (videoIds.length > 1) {
-    // load as a cued playlist so YouTube auto-advances
-    ytPlayer.loadPlaylist({
-      playlist: videoIds,
-      index: 0,
-      startSeconds: 0,
-    });
+    ytPlayer.loadPlaylist({ playlist: videoIds, index: 0, startSeconds: 0 });
   } else {
     ytPlayer.loadVideoById(t.id || t.track_id);
   }
@@ -462,7 +409,7 @@ function playTrack(idx) {
   prevBtn.disabled = idx <= 0;
   nextBtn.disabled = idx >= tracks.length - 1;
   updateVideoTab(t.id || t.track_id);
-  syncExpandedPlayer && syncExpandedPlayer();
+  syncExpandedPlayer();
   renderTracks();
 }
 
@@ -480,7 +427,7 @@ function togglePlay() {
 }
 
 function playNext() {
-  if (repeatOn) {
+  if (repeatMode === 2) {
     ytPlayer.seekTo(0);
     ytPlayer.playVideo();
     return;
@@ -489,11 +436,10 @@ function playNext() {
     playTrack(Math.floor(Math.random() * tracks.length));
     return;
   }
-  // if in playlist mode, let YouTube handle it
-  if (ytPlayer.nextVideo) {
-    ytPlayer.nextVideo();
-  } else if (currentIdx < tracks.length - 1) {
+  if (currentIdx < tracks.length - 1) {
     playTrack(currentIdx + 1);
+  } else if (repeatMode === 1) {
+    playTrack(0);
   }
 }
 
@@ -509,6 +455,21 @@ function startTrackingProgress() {
       progThumb.style.left = pct + "%";
       curTimeEl.textContent = fmt(cur);
       durTimeEl.textContent = fmt(dur);
+      const ep = document.getElementById("expProgFill");
+      const et = document.getElementById("expProgThumb");
+      const ec = document.getElementById("expCurTime");
+      const ed = document.getElementById("expDurTime");
+      if (ep) ep.style.width = pct + "%";
+      if (et) et.style.left = pct + "%";
+      if (ec) ec.textContent = fmt(cur);
+      if (ed) ed.textContent = fmt(dur);
+      if ("mediaSession" in navigator && dur > 0) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: dur, playbackRate: 1, position: cur
+          });
+        } catch(e) {}
+      }
     }
   }, 300);
 }
@@ -517,15 +478,16 @@ function onPlayerStateChange(event) {
   if (event.data === YT.PlayerState.PLAYING) {
     isPlaying = true;
     setPlayIcon(true);
+    const expPI = document.getElementById("expPlayIcon");
+    if (expPI) expPI.innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
     startTrackingProgress();
 
-    // sync track info when YouTube auto-advances to next song
+    // sync metadata when YouTube auto-advances in playlist mode
     if (ytPlayer.getPlaylistIndex && ytPlayer.getPlaylistIndex() !== null) {
       const plIdx = ytPlayer.getPlaylistIndex();
-      if (plIdx >= 0 && (currentIdx + plIdx) < tracks.length) {
+      if (plIdx > 0) {
         const realIdx = currentIdx + plIdx;
-        // only update metadata if YouTube moved to a different track
-        if (plIdx > 0) {
+        if (realIdx < tracks.length) {
           currentIdx = realIdx;
           currentTrackData = tracks[currentIdx];
           playerThumb.src = currentTrackData.thumbnail || "";
@@ -536,7 +498,7 @@ function onPlayerStateChange(event) {
           updateFavBtn();
           updateMediaSession();
           updateVideoTab(currentTrackData.id);
-          syncExpandedPlayer && syncExpandedPlayer();
+          syncExpandedPlayer();
           renderTracks();
         }
       }
@@ -545,11 +507,12 @@ function onPlayerStateChange(event) {
   } else if (event.data === YT.PlayerState.PAUSED) {
     isPlaying = false;
     setPlayIcon(false);
+    const expPI = document.getElementById("expPlayIcon");
+    if (expPI) expPI.innerHTML = `<path d="M8 5v14l11-7z"/>`;
     clearInterval(progressInterval);
 
   } else if (event.data === YT.PlayerState.ENDED) {
     clearInterval(progressInterval);
-    // only fires for single video — playlist mode handles this natively
     playNext();
   }
 }
@@ -566,11 +529,16 @@ progTrack.addEventListener("click", e => {
   if (dur > 0) ytPlayer.seekTo(pct * dur, true);
 });
 
-shuffleBtn.addEventListener("click", () => { shuffleOn = !shuffleOn; shuffleBtn.classList.toggle("active", shuffleOn); });
-repeatBtn.addEventListener("click", () => { repeatOn = !repeatOn; repeatBtn.classList.toggle("active", repeatOn); });
+shuffleBtn.addEventListener("click", () => {
+  shuffleOn = !shuffleOn;
+  shuffleBtn.classList.toggle("active", shuffleOn);
+  const expShuffle = document.getElementById("expShuffleBtn");
+  if (expShuffle) expShuffle.classList.toggle("active", shuffleOn);
+});
+
 playBtn.addEventListener("click", togglePlay);
 prevBtn.addEventListener("click", () => {
-  if (ytPlayer.previousVideo && ytPlayer.getPlaylistIndex() > 0) {
+  if (ytPlayer.previousVideo && ytPlayer.getPlaylistIndex && ytPlayer.getPlaylistIndex() > 0) {
     ytPlayer.previousVideo();
   } else {
     playTrack(currentIdx - 1);
@@ -589,6 +557,50 @@ function updateVideoTab(videoId) {
 }
 
 videoBtn.addEventListener("click", () => navigateTo("video"));
+
+// ── Media Session ──────────────────────────────────────────────────────────
+function updateMediaSession() {
+  if (!("mediaSession" in navigator)) return;
+  if (!currentTrackData) return;
+
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: currentTrackData.title,
+    artist: currentTrackData.artist,
+    album: "Nocturne",
+    artwork: [
+      { src: currentTrackData.thumbnail, sizes: "300x168", type: "image/jpeg" },
+      { src: currentTrackData.thumbnail, sizes: "512x512", type: "image/jpeg" }
+    ]
+  });
+
+  navigator.mediaSession.setActionHandler("play", () => {
+    ytPlayer && ytPlayer.playVideo();
+    isPlaying = true; setPlayIcon(true);
+    navigator.mediaSession.playbackState = "playing";
+  });
+  navigator.mediaSession.setActionHandler("pause", () => {
+    ytPlayer && ytPlayer.pauseVideo();
+    isPlaying = false; setPlayIcon(false);
+    navigator.mediaSession.playbackState = "paused";
+  });
+  navigator.mediaSession.setActionHandler("previoustrack", () => {
+    if (ytPlayer.previousVideo && ytPlayer.getPlaylistIndex && ytPlayer.getPlaylistIndex() > 0) {
+      ytPlayer.previousVideo();
+    } else if (currentIdx > 0) playTrack(currentIdx - 1);
+  });
+  navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
+  navigator.mediaSession.setActionHandler("seekbackward", () => {
+    if (ytPlayer.previousVideo && ytPlayer.getPlaylistIndex && ytPlayer.getPlaylistIndex() > 0) {
+      ytPlayer.previousVideo();
+    } else if (currentIdx > 0) playTrack(currentIdx - 1);
+  });
+  navigator.mediaSession.setActionHandler("seekforward", () => playNext());
+  navigator.mediaSession.setActionHandler("seekto", e => {
+    if (ytPlayer && e.seekTime !== undefined) ytPlayer.seekTo(e.seekTime, true);
+  });
+
+  navigator.mediaSession.playbackState = "playing";
+}
 
 // ── Favorites ──────────────────────────────────────────────────────────────
 window._favsCache = [];
@@ -631,20 +643,12 @@ async function renderFavorites() {
   const favs = window._favsCache;
   if (!favs.length) { el.innerHTML = ""; empty.classList.remove("hidden"); return; }
   empty.classList.add("hidden");
-
-  // map to standard track shape and play from favorites
   const mapped = favs.map(f => ({
-    id: f.track_id,
-    title: f.title,
-    artist: f.artist,
-    thumbnail: f.thumbnail,
-    duration_fmt: f.duration_fmt
+    id: f.track_id, title: f.title, artist: f.artist,
+    thumbnail: f.thumbnail, duration_fmt: f.duration_fmt
   }));
-
-  // temporarily set global tracks so playTrack works
-  const savedTracks = tracks;
+  const saved = tracks;
   tracks = mapped;
-
   el.innerHTML = mapped.map((t, i) => `
     <div class="track" data-idx="${i}">
       <div class="track-num"><span>${i + 1}</span></div>
@@ -654,7 +658,7 @@ async function renderFavorites() {
         <div class="track-artist">${escHtml(t.artist)}</div>
       </div>
       <span class="track-dur">${t.duration_fmt || ""}</span>
-      <button class="track-action faved" data-action="unfav" data-idx="${i}" title="Remove from favorites">
+      <button class="track-action faved" data-action="unfav" data-idx="${i}" title="Remove">
         <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5">
           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
         </svg>
@@ -665,12 +669,10 @@ async function renderFavorites() {
   el.querySelectorAll(".track").forEach(row => {
     row.addEventListener("click", e => {
       if (e.target.closest("[data-action]")) return;
-      // keep tracks as favorites list while playing
       tracks = mapped;
       playTrack(+row.dataset.idx);
     });
   });
-
   el.querySelectorAll("[data-action='unfav']").forEach(btn => {
     btn.addEventListener("click", async e => {
       e.stopPropagation();
@@ -680,9 +682,7 @@ async function renderFavorites() {
       renderFavorites();
     });
   });
-
-  // restore tracks only if we're not currently playing from favorites
-  if (currentIdx < 0) tracks = savedTracks;
+  if (currentIdx < 0) tracks = saved;
 }
 
 // ── Playlists ──────────────────────────────────────────────────────────────
@@ -704,25 +704,16 @@ async function renderPlaylists() {
   const container = document.getElementById("playlistsContainer");
   const empty = document.getElementById("playlistEmpty");
 
-  if (!playlists.length) {
-    container.innerHTML = "";
-    empty.classList.remove("hidden");
-    return;
-  }
+  if (!playlists.length) { container.innerHTML = ""; empty.classList.remove("hidden"); return; }
   empty.classList.add("hidden");
 
-  // Grid of playlist cards
   container.innerHTML = `
     <div class="playlist-grid" id="playlistGrid">
       ${playlists.map(pl => `
         <div class="pl-card" data-id="${pl.id}">
           <div class="pl-card-art">
-            ${pl.tracks.slice(0, 4).map(t =>
-              `<img src="${t.thumbnail}" alt="" loading="lazy"/>`
-            ).join("")}
-            ${pl.tracks.length === 0
-              ? `<div class="pl-card-empty-art">🎵</div>`
-              : ""}
+            ${pl.tracks.slice(0, 4).map(t => `<img src="${t.thumbnail}" alt="" loading="lazy"/>`).join("")}
+            ${pl.tracks.length === 0 ? `<div class="pl-card-empty-art">🎵</div>` : ""}
           </div>
           <div class="pl-card-info">
             <div class="pl-card-name">${escHtml(pl.name)}</div>
@@ -730,24 +721,19 @@ async function renderPlaylists() {
           </div>
           <div class="pl-card-btns">
             <button class="pl-play-btn" data-id="${pl.id}" data-shuffle="0" title="Play in order">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-              Play
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Play
             </button>
             <button class="pl-play-btn shuffle" data-id="${pl.id}" data-shuffle="1" title="Shuffle play">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
-              Shuffle
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg> Shuffle
             </button>
           </div>
         </div>
       `).join("")}
     </div>
-
-    <!-- Expanded playlist view (hidden by default) -->
     <div class="pl-detail hidden" id="plDetail">
       <div class="pl-detail-header">
         <button class="pl-back-btn" id="plBackBtn">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-          Back
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg> Back
         </button>
         <div class="pl-detail-name" id="plDetailName"></div>
         <button class="pl-delete-btn" id="plDeleteBtn">
@@ -758,17 +744,14 @@ async function renderPlaylists() {
     </div>
   `;
 
-  // Card click → open detail
   container.querySelectorAll(".pl-card").forEach(card => {
     card.addEventListener("click", e => {
       if (e.target.closest(".pl-play-btn")) return;
       const pl = playlists.find(p => p.id === card.dataset.id);
-      if (!pl) return;
-      openPlaylistDetail(pl, playlists);
+      if (pl) openPlaylistDetail(pl);
     });
   });
 
-  // Play / Shuffle buttons on card
   container.querySelectorAll(".pl-play-btn").forEach(btn => {
     btn.addEventListener("click", e => {
       e.stopPropagation();
@@ -781,19 +764,21 @@ async function renderPlaylists() {
       if (btn.dataset.shuffle === "1") {
         shuffleOn = true;
         shuffleBtn.classList.add("active");
-        expShuffleBtn && expShuffleBtn.classList.add("active");
+        const expS = document.getElementById("expShuffleBtn");
+        if (expS) expS.classList.add("active");
         playTrack(Math.floor(Math.random() * tracks.length));
       } else {
         shuffleOn = false;
         shuffleBtn.classList.remove("active");
-        expShuffleBtn && expShuffleBtn.classList.remove("active");
+        const expS = document.getElementById("expShuffleBtn");
+        if (expS) expS.classList.remove("active");
         playTrack(0);
       }
     });
   });
 }
 
-function openPlaylistDetail(pl, playlists) {
+function openPlaylistDetail(pl) {
   const grid = document.getElementById("playlistGrid");
   const detail = document.getElementById("plDetail");
   const detailName = document.getElementById("plDetailName");
@@ -805,7 +790,6 @@ function openPlaylistDetail(pl, playlists) {
   detail.classList.remove("hidden");
   detailName.textContent = pl.name;
 
-  // inject search bar into detail header area
   let searchBar = document.getElementById("plDetailSearch");
   if (!searchBar) {
     searchBar = document.createElement("div");
@@ -830,10 +814,7 @@ function openPlaylistDetail(pl, playlists) {
   function renderDetailTracks(filterQuery) {
     const q = (filterQuery || "").toLowerCase().trim();
     const filtered = q
-      ? mapped.filter(t =>
-          t.title.toLowerCase().includes(q) ||
-          t.artist.toLowerCase().includes(q)
-        )
+      ? mapped.filter(t => t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q))
       : mapped;
 
     if (!filtered.length) {
@@ -861,7 +842,6 @@ function openPlaylistDetail(pl, playlists) {
     detailList.querySelectorAll(".track").forEach(row => {
       row.addEventListener("click", e => {
         if (e.target.closest("[data-action]")) return;
-        // play from full mapped list starting at real index
         tracks = mapped;
         playTrack(+row.dataset.realidx);
       });
@@ -881,14 +861,10 @@ function openPlaylistDetail(pl, playlists) {
 
   renderDetailTracks();
 
-  // live search
   document.getElementById("plDetailSearchInput").addEventListener("input", e => {
     renderDetailTracks(e.target.value);
   });
-  // stop space from triggering play/pause
-  document.getElementById("plDetailSearchInput").addEventListener("keydown", e => {
-    e.stopPropagation();
-  });
+  document.getElementById("plDetailSearchInput").addEventListener("keydown", e => e.stopPropagation());
 
   backBtn.onclick = () => {
     detail.classList.add("hidden");
@@ -903,6 +879,7 @@ function openPlaylistDetail(pl, playlists) {
     renderPlaylists();
   };
 }
+
 // ── Playlist modal ─────────────────────────────────────────────────────────
 async function openPlaylistModal(track) {
   if (!track) return;
@@ -927,7 +904,7 @@ async function openPlaylistModal(track) {
 addToPlaylistBtn.addEventListener("click", () => openPlaylistModal(currentTrackData));
 modalClose.addEventListener("click", () => playlistModal.classList.add("hidden"));
 
-// ── Expanded Player ───────────────────────────────────────────────────────
+// ── Expanded Player ────────────────────────────────────────────────────────
 const expandedPlayer = document.getElementById("expandedPlayer");
 const collapseBtn    = document.getElementById("collapseBtn");
 const expArt         = document.getElementById("expArt");
@@ -960,8 +937,8 @@ function closeExpandedPlayer() {
 
 function syncExpandedPlayer() {
   if (!currentTrackData) return;
-  expArt.src    = currentTrackData.thumbnail || "";
-  expTitle.textContent  = currentTrackData.title;
+  expArt.src = currentTrackData.thumbnail || "";
+  expTitle.textContent = currentTrackData.title;
   expArtist.textContent = currentTrackData.artist;
   expPrevBtn.disabled = currentIdx <= 0;
   expNextBtn.disabled = currentIdx >= tracks.length - 1;
@@ -969,107 +946,58 @@ function syncExpandedPlayer() {
   expFavBtn.classList.toggle("faved", faved);
   expFavBtn.querySelector("svg").setAttribute("fill", faved ? "currentColor" : "none");
   expShuffleBtn.classList.toggle("active", shuffleOn);
-  expRepeatBtn.classList.toggle("active", repeatOn);
-  setExpPlayIcon(isPlaying);
-}
-
-function setExpPlayIcon(playing) {
-  expPlayIcon.innerHTML = playing
+  expRepeatBtn.classList.toggle("active", repeatMode > 0);
+  expPlayIcon.innerHTML = isPlaying
     ? `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`
     : `<path d="M8 5v14l11-7z"/>`;
+  updateRepeatBtn();
 }
 
-// Click player bar to expand
 playerBar.addEventListener("click", e => {
-  if (e.target.closest(".ctrl") || e.target.closest(".ctrl-sm") ||
-      e.target.closest(".prog-track")) return;
+  if (e.target.closest(".ctrl") || e.target.closest(".ctrl-sm") || e.target.closest(".prog-track")) return;
   if (currentTrackData) openExpandedPlayer();
 });
 
 collapseBtn.addEventListener("click", closeExpandedPlayer);
 
-// Expanded controls mirror main controls
-expPlayBtn.addEventListener("click", () => { togglePlay(); setExpPlayIcon(isPlaying); });
-expPrevBtn.addEventListener("click", () => { playTrack(currentIdx - 1); });
-expNextBtn.addEventListener("click", () => { playNext(); });
+expPlayBtn.addEventListener("click", () => {
+  togglePlay();
+  expPlayIcon.innerHTML = isPlaying
+    ? `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`
+    : `<path d="M8 5v14l11-7z"/>`;
+});
+
+expPrevBtn.addEventListener("click", () => {
+  if (ytPlayer.previousVideo && ytPlayer.getPlaylistIndex && ytPlayer.getPlaylistIndex() > 0) {
+    ytPlayer.previousVideo();
+  } else {
+    playTrack(currentIdx - 1);
+  }
+});
+expNextBtn.addEventListener("click", () => playNext());
+
 expShuffleBtn.addEventListener("click", () => {
   shuffleOn = !shuffleOn;
   shuffleBtn.classList.toggle("active", shuffleOn);
   expShuffleBtn.classList.toggle("active", shuffleOn);
 });
+
 expRepeatBtn.addEventListener("click", () => {
-  repeatOn = !repeatOn;
-  repeatBtn.classList.toggle("active", repeatOn);
-  expRepeatBtn.classList.toggle("active", repeatOn);
+  repeatMode = (repeatMode + 1) % 3;
+  updateRepeatBtn();
 });
+
 expFavBtn.addEventListener("click", () => {
   if (currentTrackData) { toggleFav(currentTrackData); syncExpandedPlayer(); }
 });
 expAddPlBtn.addEventListener("click", () => openPlaylistModal(currentTrackData));
 
-// Seek from expanded progress bar
 expProgTrack.addEventListener("click", e => {
   if (!ytPlayer || currentIdx < 0) return;
   const rect = expProgTrack.getBoundingClientRect();
   const pct = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
   const dur = ytPlayer.getDuration();
   if (dur > 0) ytPlayer.seekTo(pct * dur, true);
-});
-
-// Keep expanded progress in sync
-const _origStartTracking = startTrackingProgress;
-startTrackingProgress = function() {
-  _origStartTracking();
-  // progress interval already updates mini bar — also update expanded
-};
-
-// Patch progress interval to also update expanded player
-const _origInterval = setInterval;
-// Instead, just patch the timeupdate inside onPlayerStateChange by overriding startTrackingProgress:
-// Re-declare it cleanly:
-startTrackingProgress = function() {
-  clearInterval(progressInterval);
-  progressInterval = setInterval(() => {
-    if (!ytPlayer || !isPlaying) return;
-    const cur = ytPlayer.getCurrentTime(), dur = ytPlayer.getDuration();
-    if (dur > 0) {
-      const pct = (cur / dur) * 100;
-      progFill.style.width = pct + "%";
-      progThumb.style.left = pct + "%";
-      curTimeEl.textContent = fmt(cur);
-      durTimeEl.textContent = fmt(dur);
-      expProgFill.style.width = pct + "%";
-      expProgThumb.style.left = pct + "%";
-      expCurTime.textContent = fmt(cur);
-      expDurTime.textContent = fmt(dur);
-
-      // keep Android media session position updated
-      if ("mediaSession" in navigator && dur > 0) {
-        try {
-          navigator.mediaSession.setPositionState({
-            duration: dur,
-            playbackRate: 1,
-            position: cur
-          });
-        } catch(e) {}
-      }
-    }
-  }, 300);
-};
-
-// Sync expanded when track changes
-const _origPlayTrack = playTrack;
-playTrack = function(idx) {
-  _origPlayTrack(idx);
-  syncExpandedPlayer();
-};
-
-// Close expanded on back button
-window.addEventListener("popstate", () => {
-  if (expandedPlayer.classList.contains("open")) {
-    closeExpandedPlayer();
-    history.pushState(null, "", location.href);
-  }
 });
 
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────
