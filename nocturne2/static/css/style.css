@@ -461,3 +461,14 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
   padding: 0 10px;
 }
 .pl-detail-search input::placeholder { color: var(--text3); }
+
+/* repeat one — accent ring to distinguish from repeat all */
+.ctrl.active[title="Repeat one"] {
+  background: var(--accent2);
+  border-color: var(--accent2);
+  color: #fff;
+}
+.ctrl.active[title="Repeat all"] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
