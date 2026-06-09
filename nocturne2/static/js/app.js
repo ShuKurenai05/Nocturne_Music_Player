@@ -398,12 +398,8 @@ function playTrack(idx) {
   updateFavBtn();
   updateMediaSession();
 
-  const videoIds = tracks.slice(idx).map(t => t.id || t.track_id);
-  if (videoIds.length > 1) {
-    ytPlayer.loadPlaylist({ playlist: videoIds, index: 0, startSeconds: 0 });
-  } else {
-    ytPlayer.loadVideoById(t.id || t.track_id);
-  }
+  // always use loadVideoById — gives us full control over repeat/next
+  ytPlayer.loadVideoById(t.id || t.track_id);
 
   isPlaying = true;
   prevBtn.disabled = idx <= 0;
@@ -428,8 +424,10 @@ function togglePlay() {
 
 function playNext() {
   if (repeatMode === 2) {
-    ytPlayer.seekTo(0);
-    ytPlayer.playVideo();
+    // repeat one — reload same track completely
+    ytPlayer.loadVideoById(currentTrackData.id || currentTrackData.track_id);
+    isPlaying = true;
+    setPlayIcon(true);
     return;
   }
   if (shuffleOn) {
@@ -439,8 +437,10 @@ function playNext() {
   if (currentIdx < tracks.length - 1) {
     playTrack(currentIdx + 1);
   } else if (repeatMode === 1) {
+    // repeat all — go back to first
     playTrack(0);
   }
+  // repeatMode 0, last song — stop
 }
 
 // ── Progress ───────────────────────────────────────────────────────────────
@@ -481,28 +481,6 @@ function onPlayerStateChange(event) {
     const expPI = document.getElementById("expPlayIcon");
     if (expPI) expPI.innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
     startTrackingProgress();
-
-    // sync metadata when YouTube auto-advances in playlist mode
-    if (ytPlayer.getPlaylistIndex && ytPlayer.getPlaylistIndex() !== null) {
-      const plIdx = ytPlayer.getPlaylistIndex();
-      if (plIdx > 0) {
-        const realIdx = currentIdx + plIdx;
-        if (realIdx < tracks.length) {
-          currentIdx = realIdx;
-          currentTrackData = tracks[currentIdx];
-          playerThumb.src = currentTrackData.thumbnail || "";
-          playerTitle.textContent = currentTrackData.title;
-          playerArtist.textContent = currentTrackData.artist;
-          prevBtn.disabled = currentIdx <= 0;
-          nextBtn.disabled = currentIdx >= tracks.length - 1;
-          updateFavBtn();
-          updateMediaSession();
-          updateVideoTab(currentTrackData.id);
-          syncExpandedPlayer();
-          renderTracks();
-        }
-      }
-    }
 
   } else if (event.data === YT.PlayerState.PAUSED) {
     isPlaying = false;
