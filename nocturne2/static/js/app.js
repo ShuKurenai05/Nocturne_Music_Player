@@ -515,13 +515,7 @@ shuffleBtn.addEventListener("click", () => {
 });
 
 playBtn.addEventListener("click", togglePlay);
-prevBtn.addEventListener("click", () => {
-  if (ytPlayer.previousVideo && ytPlayer.getPlaylistIndex && ytPlayer.getPlaylistIndex() > 0) {
-    ytPlayer.previousVideo();
-  } else {
-    playTrack(currentIdx - 1);
-  }
-});
+prevBtn.addEventListener("click", () => playTrack(currentIdx - 1));
 nextBtn.addEventListener("click", () => playNext());
 
 // ── Video tab ──────────────────────────────────────────────────────────────
@@ -562,9 +556,10 @@ function updateMediaSession() {
     navigator.mediaSession.playbackState = "paused";
   });
   navigator.mediaSession.setActionHandler("previoustrack", () => {
-    if (ytPlayer.previousVideo && ytPlayer.getPlaylistIndex && ytPlayer.getPlaylistIndex() > 0) {
-      ytPlayer.previousVideo();
-    } else if (currentIdx > 0) playTrack(currentIdx - 1);
+    if (currentIdx > 0) playTrack(currentIdx - 1);
+  });
+  navigator.mediaSession.setActionHandler("seekbackward", () => {
+    if (currentIdx > 0) playTrack(currentIdx - 1);
   });
   navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
   navigator.mediaSession.setActionHandler("seekbackward", () => {
