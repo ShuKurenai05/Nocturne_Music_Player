@@ -1,3 +1,10 @@
+(function() {
+  const vp = document.getElementById("viewport");
+  if (!vp) return;
+  const isMobile = localStorage.getItem("nocturne_view") === "mobile";
+  vp.setAttribute("content", isMobile ? "width=430" : "width=1280");
+})();
+
 "use strict";
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -56,26 +63,16 @@ const playlistNameInput= document.getElementById("playlistNameInput");
 const greetingHeader   = document.getElementById("greetingHeader");
 const viewToggle = document.getElementById("viewToggle");
 let isMobileView = localStorage.getItem("nocturne_view") === "mobile";
+if (isMobileView) viewToggle.style.color = "var(--accent)";
 
-function applyView() {
-  const vp = document.getElementById("viewport");
-  if (isMobileView) {
-    vp.setAttribute("content", "width=430");
-    viewToggle.style.color = "var(--accent)";
-  } else {
-    vp.setAttribute("content", "width=1280");
-    viewToggle.style.color = "";
-  }
-}
 
 viewToggle.addEventListener("click", () => {
   isMobileView = !isMobileView;
   localStorage.setItem("nocturne_view", isMobileView ? "mobile" : "desktop");
-  applyView();
-  showToast(isMobileView ? "Mobile view on" : "Desktop view on");
+  location.reload();
 });
 
-applyView();
+
 
 // ── Back button / refresh guards ───────────────────────────────────────────
 window.addEventListener("beforeunload", e => {
