@@ -54,6 +54,28 @@ const modalPlaylistList= document.getElementById("modalPlaylistList");
 const createPlaylistBtn= document.getElementById("createPlaylistBtn");
 const playlistNameInput= document.getElementById("playlistNameInput");
 const greetingHeader   = document.getElementById("greetingHeader");
+const viewToggle = document.getElementById("viewToggle");
+let isMobileView = localStorage.getItem("nocturne_view") === "mobile";
+
+function applyView() {
+  const vp = document.getElementById("viewport");
+  if (isMobileView) {
+    vp.setAttribute("content", "width=430");
+    viewToggle.style.color = "var(--accent)";
+  } else {
+    vp.setAttribute("content", "width=1280");
+    viewToggle.style.color = "";
+  }
+}
+
+viewToggle.addEventListener("click", () => {
+  isMobileView = !isMobileView;
+  localStorage.setItem("nocturne_view", isMobileView ? "mobile" : "desktop");
+  applyView();
+  showToast(isMobileView ? "Mobile view on" : "Desktop view on");
+});
+
+applyView();
 
 // ── Back button / refresh guards ───────────────────────────────────────────
 window.addEventListener("beforeunload", e => {
